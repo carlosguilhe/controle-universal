@@ -55,7 +55,7 @@ Abra o app, toque no seu PC e digite o código de 6 números do painel. Só na p
 | 🎮 **Controle remoto** | Direcional com OK, Esc, voltar página, tela cheia, volume real do PC com barra, troca da saída de áudio (alto‑falantes, TV/HDMI, fone) e brilho em notebooks |
 | 🎬 **Mídia** | Play/pausa, faixa anterior/próxima, "tocando agora" com título e progresso, atalhos de vídeo (tela cheia, mudo, legenda) |
 | ⌨️ **Teclado** | Digitação ao vivo, ditado por voz, teclado completo (Ctrl, Alt, Shift, Win, F1–F12), atalhos de edição e do Windows |
-| 🌐 **Sites** | Botões editáveis pelo celular, busca no YouTube, Google, Netflix e Spotify, atalhos dos sites na tela inicial do Android |
+| 🌐 **Sites** | Adicione e remova sites direto na aba, com catálogo de serviços populares ou endereço próprio. Cada botão mostra o **logo do site** (o PC busca e guarda o ícone; sem ícone, fica a letra inicial). Busca no YouTube, Google, Netflix e Spotify e atalhos na tela inicial do Android |
 | ⭐ **Cenas** | Receitas de vários passos com um toque. Exemplo: abrir a Netflix, esperar 3 s, volume em 40% e apagar a tela |
 | 📅 **Agenda** | Executa uma cena, abre um site ou desliga o PC em um horário (uma vez ou todos os dias) |
 | 🖥️ **Espelho de tela** | Veja o PC no celular e toque para clicar. Vários monitores, zoom, rolagem e qualidade ajustável |

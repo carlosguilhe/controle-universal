@@ -19,8 +19,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Controle o PC pelo celular: mouse, teclado, midia, sites, tela e arquivos.")]
 [assembly: AssemblyCompany("Controle Universal")]
 [assembly: AssemblyCopyright("MIT License")]
-[assembly: AssemblyVersion("4.0.0.0")]
-[assembly: AssemblyFileVersion("4.0.0.0")]
+[assembly: AssemblyVersion("4.1.0.0")]
+[assembly: AssemblyFileVersion("4.1.0.0")]
 
 namespace ControleUniversal
 {
@@ -307,6 +307,110 @@ namespace ControleUniversal
         }
     }
 
+    // ------------------------------------------------- icones dos sites (cache no PC)
+
+    static class Icones
+    {
+        static readonly Dictionary<string, DateTime> Falhas = new Dictionary<string, DateTime>();
+        static readonly object Trava = new object();
+
+        static string Pasta
+        {
+            get { string p = Path.Combine(Config.Pasta, "icones"); Directory.CreateDirectory(p); return p; }
+        }
+
+        // So aceita nomes de site publicos (sem IP, sem porta, sem "localhost").
+        public static string HostDe(string url)
+        {
+            Uri u;
+            if (string.IsNullOrEmpty(url) || url.Length > 300 || !Uri.TryCreate(url, UriKind.Absolute, out u)) return null;
+            string h = u.Host.ToLowerInvariant();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(h, @"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$")) return null;
+            return h;
+        }
+
+        static bool Privado(string host)
+        {
+            try
+            {
+                foreach (System.Net.IPAddress ip in System.Net.Dns.GetHostAddresses(host))
+                {
+                    if (System.Net.IPAddress.IsLoopback(ip)) return true;
+                    byte[] b = ip.GetAddressBytes();
+                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        if (b[0] == 10 || b[0] == 0 || b[0] == 127 || (b[0] == 172 && b[1] >= 16 && b[1] <= 31) || (b[0] == 192 && b[1] == 168) || (b[0] == 169 && b[1] == 254)) return true;
+                    }
+                    else if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal) return true;
+                }
+                return false;
+            }
+            catch { return true; }
+        }
+
+        public static string Tipo(byte[] b)
+        {
+            if (b == null || b.Length < 16) return null;
+            if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return "image/png";
+            if (b[0] == 0 && b[1] == 0 && b[2] == 1 && b[3] == 0) return "image/x-icon";
+            if (b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return "image/jpeg";
+            if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) return "image/gif";
+            if (b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46 && b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) return "image/webp";
+            return null;
+        }
+
+        static byte[] Baixar(string url)
+        {
+            try
+            {
+                var rq = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(url);
+                rq.Timeout = 5000; rq.ReadWriteTimeout = 5000; rq.MaximumAutomaticRedirections = 3;
+                rq.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ControleUniversal";
+                using (var rs = (System.Net.HttpWebResponse)rq.GetResponse())
+                {
+                    if ((int)rs.StatusCode != 200 || rs.ContentLength > 524288) return null;
+                    using (Stream st = rs.GetResponseStream())
+                    {
+                        var ms = new MemoryStream(); byte[] buf = new byte[8192]; int k;
+                        while ((k = st.Read(buf, 0, buf.Length)) > 0) { ms.Write(buf, 0, k); if (ms.Length > 524288) return null; }
+                        return ms.ToArray();
+                    }
+                }
+            }
+            catch { return null; }
+        }
+
+        // Devolve o icone do site (do cache ou da internet) ou null se nao existir.
+        public static byte[] Obter(string host, out string tipo)
+        {
+            tipo = null;
+            string arq = Path.Combine(Pasta, host + ".img");
+            if (File.Exists(arq))
+            {
+                byte[] c = File.ReadAllBytes(arq); tipo = Tipo(c);
+                if (tipo != null) return c;
+            }
+            lock (Trava)
+            {
+                DateTime quando;
+                if (Falhas.TryGetValue(host, out quando) && (DateTime.Now - quando).TotalMinutes < 30) return null;
+            }
+            // 1) servico de favicons do Google (PNG nitido, 404 quando o site nao tem icone), 2) icone de toque do proprio site, 3) favicon.ico
+            string[] tentativas = {
+                "https://www.google.com/s2/favicons?domain=" + host + "&sz=128",
+                "https://" + host + "/apple-touch-icon.png",
+                "https://" + host + "/favicon.ico" };
+            for (int i = 0; i < tentativas.Length; i++)
+            {
+                if (i > 0 && Privado(host)) break;
+                byte[] b = Baixar(tentativas[i]); string t = Tipo(b);
+                if (t != null) { try { File.WriteAllBytes(arq, b); } catch { } tipo = t; return b; }
+            }
+            lock (Trava) { Falhas[host] = DateTime.Now; }
+            return null;
+        }
+    }
+
     // ---------------------------------------------------------------- arquivos
 
     static class Arquivos
@@ -470,7 +574,7 @@ namespace ControleUniversal
             using (RegistryKey k = Registry.CurrentUser.CreateSubKey(ChaveDesinstalar))
             {
                 k.SetValue("DisplayName", "Controle Universal");
-                k.SetValue("DisplayVersion", "4.0.0");
+                k.SetValue("DisplayVersion", "4.1.0");
                 k.SetValue("Publisher", "Controle Universal");
                 k.SetValue("DisplayIcon", ExeInstalado);
                 k.SetValue("InstallLocation", Dir);

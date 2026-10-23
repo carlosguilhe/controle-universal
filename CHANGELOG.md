@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.1.0
+
+- **Sites:** botões **Adicionar site** e **Editar** direto na aba Sites. O catálogo traz 32 serviços populares (streaming, música, redes, ferramentas) e também aceita um endereço próprio.
+- **Logos automáticos:** o PC busca o ícone de cada site na internet, guarda em cache e o app mostra no botão. Se o site não tiver ícone, aparece a letra inicial.
+- Remover um site pede confirmação com um segundo toque.
+
 ## 4.0.0 — primeira versão pública
 
 **PC**

@@ -138,8 +138,23 @@
   .site { display: flex; align-items: center; gap: 12px; background: var(--card); border: 0; border-radius: 24px; padding: 12px 14px;
     color: var(--texto); font: inherit; font-weight: 600; text-align: left; min-width: 0; }
   .site:active { background: var(--card2); transform: scale(.98); }
-  .site .ini { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 700; font-size: 15px; flex: none; }
+  .item-cat { display: flex; align-items: center; gap: 12px; background: var(--card); border: 0; border-radius: 20px; padding: 10px 14px; width: 100%; color: var(--texto); font: inherit; text-align: left; }
+  .item-cat:active { background: var(--card2); }
+  .item-cat .nome { flex: 1; min-width: 0; font-weight: 500; }
+  .item-cat small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-cat .i { color: var(--destaque); }
+  .item-cat.ja .i { color: var(--ok); }
+  .ini { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 15px; flex: none; overflow: hidden; }
+  .ini.icone { background: #fff !important; padding: 6px; }
+  .ini img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .site { position: relative; }
+  .site .rem { position: absolute; top: -7px; right: -5px; min-width: 28px; height: 28px; border-radius: 14px; background: var(--erro); color: #fff;
+    display: none; align-items: center; justify-content: center; padding: 0 6px; z-index: 2; font-size: 12px; font-weight: 600; box-shadow: 0 2px 6px #0006; }
+  .site .rem .i { width: 16px; height: 16px; stroke-width: 3; }
+  .editando .site .rem { display: flex; }
+  .editando .site { animation: tremer .3s infinite alternate ease-in-out; }
+  @keyframes tremer { from { transform: rotate(-.7deg); } to { transform: rotate(.7deg); } }
   .site span.t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
 
   /* janelas */
@@ -451,6 +466,10 @@
 
     <!-- SITES -->
     <section class="aba" id="aba-sites">
+      <div class="linha" id="sitesBarra">
+        <button class="btn peq primario" id="bSiteAdd"><svg class="i"><use href="#i-plus"/></svg>Adicionar site</button>
+        <button class="btn peq" id="bSiteEdit"><svg class="i"><use href="#i-edit"/></svg><span>Editar</span></button>
+      </div>
       <div class="titulo-sec" id="cenasTitulo" style="display:none">Cenas</div>
       <div class="rapidas" id="cenasRapidas"></div>
       <div class="grade2" id="grade-sites"></div>
@@ -500,7 +519,7 @@
       <button class="btn linha-menu" data-ir="ajustes"><svg class="i"><use href="#i-sliders"/></svg><span class="rot">Ajustes</span><svg class="i"><use href="#i-right"/></svg></button>
       <button class="btn" id="bLista"><svg class="i"><use href="#i-swap"/></svg>Trocar de computador</button>
       <button class="btn perigo" id="bEsquecer"><svg class="i"><use href="#i-trash"/></svg><span>Esquecer este computador</span></button>
-      <div class="suave" style="margin:2px 6px 0">Controle Universal 4.0</div>
+      <div class="suave" style="margin:2px 6px 0">Controle Universal 4.1</div>
     </section>
 
     <!-- JANELAS -->
@@ -680,6 +699,24 @@
     <button class="btn" id="eDir">Direito</button>
     <button class="btn" id="eTec"><svg class="i"><use href="#i-keyboard"/></svg></button>
   </div>
+</section>
+
+<!-- CATALOGO DE SITES -->
+<section class="tela" id="t-catalogo">
+  <header>
+    <button class="icb" id="catFechar" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>
+    <h1>Adicionar site</h1>
+  </header>
+  <main>
+    <input id="catBusca" placeholder="Buscar serviço…" autocapitalize="off" autocomplete="off">
+    <div id="catLista" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="titulo-sec">Outro endereço</div>
+    <div class="caixa">
+      <input id="catNome" placeholder="Nome (opcional)" maxlength="30">
+      <input id="catUrl" type="url" inputmode="url" placeholder="https://..." autocapitalize="off">
+      <button class="btn primario" id="catAddOutro"><svg class="i"><use href="#i-plus"/></svg>Adicionar</button>
+    </div>
+  </main>
 </section>
 
 <!-- TECLADO COMPLETO -->
@@ -997,23 +1034,111 @@
   };
 
   /* ---------- sites ---------- */
+  /* icone do site: o PC busca na internet e guarda em cache; se nao houver, fica a letra inicial */
+  function iconeUrl(url) { return base(atual) + '/api/icone?t=' + encodeURIComponent(atual.token) + '&u=' + encodeURIComponent(url); }
+  function bolha(titulo, url, cor) {
+    var el = document.createElement('span'); el.className = 'ini';
+    el.textContent = (titulo || '?').charAt(0).toUpperCase(); el.style.background = cor || '#3b4252';
+    if (url) {
+      var img = new Image(); img.alt = '';
+      img.onload = function () { if (img.naturalWidth >= 16) { el.textContent = ''; el.classList.add('icone'); el.appendChild(img); } };
+      img.src = iconeUrl(url);
+    }
+    return el;
+  }
+
+  var editandoSites = false;
+  function salvarSites(lista) {
+    return apiPc('/api/sites', 'POST', { sites: lista.map(function (s) { return { titulo: s.titulo, url: s.url, cor: s.cor }; }) })
+      .then(function () { return apiPc('/api/sites'); })
+      .then(function (d) { montarSites(d); })
+      .catch(function () { toast('Não consegui salvar os sites'); });
+  }
   function montarSites(d) {
     sitesAtuais = d.sites || [];
-    var g = $('#grade-sites'); g.innerHTML = '';
-    sitesAtuais.forEach(function (s) {
+    var g = $('#grade-sites'); g.innerHTML = ''; g.classList.toggle('editando', editandoSites);
+    sitesAtuais.forEach(function (s, idx) {
       var b = document.createElement('button'); b.className = 'site';
-      b.innerHTML = '<span class="ini"></span><span class="t"></span>';
-      b.querySelector('.ini').textContent = (s.titulo || '?').charAt(0).toUpperCase();
-      b.querySelector('.ini').style.background = s.cor || '#3b4252';
-      b.querySelector('.t').textContent = s.titulo;
+      b.appendChild(bolha(s.titulo, s.url, s.cor));
+      var t = document.createElement('span'); t.className = 't'; t.textContent = s.titulo; b.appendChild(t);
+      var rem = document.createElement('span'); rem.className = 'rem'; rem.setAttribute('role', 'button'); rem.innerHTML = ico('x'); b.appendChild(rem);
+      rem.onclick = function (e) {
+        e.stopPropagation();
+        if (rem._c) { clearTimeout(rem._c); rem._c = null; salvarSites(sitesAtuais.filter(function (x, i) { return i !== idx; })).then(function () { toast(s.titulo + ' removido'); }); return; }
+        rem.textContent = 'Remover?'; vibra(10);
+        rem._c = setTimeout(function () { rem._c = null; rem.innerHTML = ico('x'); }, 3000);
+      };
       var seg = null, longo = false;
-      b.addEventListener('touchstart', function () { longo = false; seg = setTimeout(function () { longo = true; vibra(20); atalhoSite(s); }, 650); }, { passive: true });
+      b.addEventListener('touchstart', function () { longo = false; if (editandoSites) return; seg = setTimeout(function () { longo = true; vibra(20); atalhoSite(s); }, 650); }, { passive: true });
       ['touchend', 'touchmove', 'touchcancel'].forEach(function (ev) { b.addEventListener(ev, function () { clearTimeout(seg); }, { passive: true }); });
-      b.onclick = function () { if (longo) { longo = false; return; } enviar('o ' + s.id); toast('Abrindo ' + s.titulo + '…'); vibra(); };
+      b.onclick = function () { if (editandoSites) return; if (longo) { longo = false; return; } enviar('o ' + s.id); toast('Abrindo ' + s.titulo + '…'); vibra(); };
       g.appendChild(b);
     });
     $('#infoNav').textContent = d.navegador ? 'Navegador no PC: ' + d.navegador : 'Nenhum navegador encontrado no PC.';
   }
+  $('#bSiteEdit').onclick = function () {
+    editandoSites = !editandoSites;
+    $('#grade-sites').classList.toggle('editando', editandoSites);
+    $('#bSiteEdit').classList.toggle('liga', editandoSites);
+    $('#bSiteEdit span').textContent = editandoSites ? 'Concluir' : 'Editar';
+    if (editandoSites) toast('Toque no ✕ para remover um site');
+  };
+
+  /* catalogo de servicos populares + endereco proprio */
+  var CATALOGO = [
+    ['YouTube', 'https://www.youtube.com/tv', '#e62117'], ['YouTube Music', 'https://music.youtube.com', '#ff0000'],
+    ['Netflix', 'https://www.netflix.com', '#b20710'], ['Prime Video', 'https://www.primevideo.com', '#1a98ff'],
+    ['Globoplay', 'https://globoplay.globo.com', '#ee3a2c'], ['Disney+', 'https://www.disneyplus.com', '#113ccf'],
+    ['Max', 'https://www.max.com', '#5822b4'], ['Apple TV+', 'https://tv.apple.com', '#555555'],
+    ['Paramount+', 'https://www.paramountplus.com', '#0064ff'], ['Crunchyroll', 'https://www.crunchyroll.com', '#f47521'],
+    ['Pluto TV', 'https://pluto.tv', '#2f2f2f'], ['Twitch', 'https://www.twitch.tv', '#9146ff'],
+    ['Kick', 'https://kick.com', '#53fc18'], ['Spotify', 'https://open.spotify.com', '#1db954'],
+    ['Deezer', 'https://www.deezer.com', '#a238ff'], ['Amazon Music', 'https://music.amazon.com.br', '#25d1da'],
+    ['Google', 'https://www.google.com', '#4285f4'], ['Gmail', 'https://mail.google.com', '#ea4335'],
+    ['Google Drive', 'https://drive.google.com', '#1fa463'], ['Google Maps', 'https://maps.google.com', '#34a853'],
+    ['WhatsApp Web', 'https://web.whatsapp.com', '#25d366'], ['Telegram Web', 'https://web.telegram.org', '#2aabee'],
+    ['Instagram', 'https://www.instagram.com', '#e1306c'], ['Facebook', 'https://www.facebook.com', '#1877f2'],
+    ['X (Twitter)', 'https://x.com', '#222222'], ['TikTok', 'https://www.tiktok.com', '#111111'],
+    ['Reddit', 'https://www.reddit.com', '#ff4500'], ['Discord', 'https://discord.com/app', '#5865f2'],
+    ['ChatGPT', 'https://chatgpt.com', '#10a37f'], ['Claude', 'https://claude.ai', '#d97757'],
+    ['GitHub', 'https://github.com', '#333333'], ['Wikipédia', 'https://pt.wikipedia.org', '#555555']
+  ];
+  var CORES_NOVAS = ['#e8590c', '#2f9e44', '#1971c2', '#9c36b5', '#c2255c', '#0c8599', '#e67700', '#5f3dc4'];
+  function corDoNome(n) { var h = 0; for (var i = 0; i < n.length; i++) h += n.charCodeAt(i); return CORES_NOVAS[h % CORES_NOVAS.length]; }
+  function hostBonito(url) { try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return url; } }
+  function jaTem(nome, url) { return sitesAtuais.some(function (s) { return s.url === url || s.titulo.toLowerCase() === nome.toLowerCase(); }); }
+  function desenharCatalogo() {
+    var q = $('#catBusca').value.trim().toLowerCase(), box = $('#catLista'); box.innerHTML = '';
+    var achou = CATALOGO.filter(function (c) { return !q || c[0].toLowerCase().indexOf(q) >= 0 || c[1].indexOf(q) >= 0; });
+    if (!achou.length) box.innerHTML = '<div class="suave" style="margin:0 6px">Nada encontrado. Use “Outro endereço” abaixo.</div>';
+    achou.forEach(function (c) {
+      var ja = jaTem(c[0], c[1]);
+      var b = document.createElement('button'); b.className = 'item-cat' + (ja ? ' ja' : '');
+      b.appendChild(bolha(c[0], c[1], c[2]));
+      var n = document.createElement('span'); n.className = 'nome'; n.innerHTML = '<span></span><small></small>';
+      n.querySelector('span').textContent = c[0]; n.querySelector('small').textContent = ja ? 'já está nos seus sites' : hostBonito(c[1]); b.appendChild(n);
+      b.insertAdjacentHTML('beforeend', ico(ja ? 'check' : 'plus'));
+      b.onclick = function () { if (ja) { toast('Já está nos seus sites'); return; } adicionarSite(c[0], c[1], c[2]); };
+      box.appendChild(b);
+    });
+  }
+  function adicionarSite(nome, url, cor) {
+    salvarSites(sitesAtuais.concat([{ titulo: nome, url: url, cor: cor }])).then(function () { toast(nome + ' adicionado'); vibra(20); desenharCatalogo(); });
+  }
+  $('#bSiteAdd').onclick = function () { $('#catBusca').value = ''; desenharCatalogo(); tela('catalogo'); };
+  $('#catFechar').onclick = function () { tela('controle'); };
+  $('#catBusca').addEventListener('input', desenharCatalogo);
+  $('#catAddOutro').onclick = function () {
+    var u = $('#catUrl').value.trim(), nome = $('#catNome').value.trim();
+    if (!u) { toast('Digite o endereço do site'); return; }
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    var host = hostBonito(u);
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}/i.test(host)) { toast('Endereço inválido'); return; }
+    if (!nome) { var p = host.split('.')[0]; nome = p.charAt(0).toUpperCase() + p.slice(1); }
+    if (jaTem(nome, u)) { toast('Já está nos seus sites'); return; }
+    adicionarSite(nome, u, corDoNome(nome));
+    $('#catNome').value = ''; $('#catUrl').value = '';
+  };
   function atalhoSite(s) {
     try {
       var ok = window.Android && Android.fixarAtalho && Android.fixarAtalho(atual.id, s.id, s.titulo, s.cor || '#e8590c');
@@ -1803,7 +1928,7 @@
   /* ---------- botao voltar do Android ---------- */
   window.cuVoltar = function () {
     if ($('#onb').classList.contains('on')) { fecharOnb(); return true; }
-    if (tela.atual === 'tecladoc') { tela('controle'); return true; }
+    if (tela.atual === 'tecladoc' || tela.atual === 'catalogo') { tela('controle'); return true; }
     if (tela.atual === 'espelho') { pararEspelho(); tela('controle'); return true; }
     if (tela.atual === 'controle') {
       if (irParaAba.atual === 'cenaEd') { irParaAba('cenas'); return true; }

@@ -968,6 +968,19 @@ $i = $s.GetPlaybackInfo(); $t = $s.GetTimelineProperties()
                 if (apk == null) { Responder(s, 404, "text/plain; charset=utf-8", Encoding.UTF8.GetBytes("Este programa foi montado sem o aplicativo do celular."), false); return; }
                 Responder(s, 200, "application/vnd.android.package-archive", apk, false); return;
             }
+            if (r.Metodo == "GET" && c == "/api/icone")
+            {
+                if (!Autorizado(r)) { RespJson(s, 401, new Dictionary<string, object> { { "erro", "nao autorizado" } }, true); return; }
+                string host = Icones.HostDe(r.Query.ContainsKey("u") ? r.Query["u"] : "");
+                string tipoIcone; byte[] icone = host == null ? null : Icones.Obter(host, out tipoIcone);
+                if (host == null) { Responder(s, 400, "text/plain", new byte[0], true); return; }
+                tipoIcone = Icones.Tipo(icone);
+                if (icone == null || tipoIcone == null) { Responder(s, 404, "text/plain", new byte[0], true); return; }
+                string cab = "HTTP/1.1 200 OK\r\nContent-Type: " + tipoIcone + "\r\nContent-Length: " + icone.Length
+                    + "\r\nCache-Control: private, max-age=86400\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
+                byte[] cb = Encoding.ASCII.GetBytes(cab); s.Write(cb, 0, cb.Length); s.Write(icone, 0, icone.Length); s.Flush();
+                return;
+            }
             if (r.Metodo == "GET" && c == "/api/tela")
             {
                 if (!Autorizado(r)) { RespJson(s, 401, new Dictionary<string, object> { { "erro", "nao autorizado" } }, true); return; }
@@ -1450,6 +1463,7 @@ $i = $s.GetPlaybackInfo(); $t = $s.GetTimelineProperties()
         {
             Sistema.SetProcessDPIAware();     // coordenadas em pixels reais (captura de tela e mouse absoluto)
             Application.EnableVisualStyles();
+            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;   // HTTPS (TLS 1.2) para buscar icones
             Config.Carregar();
 
             // O proprio .exe e o instalador: --instalar, --desinstalar, ou pergunta ao abrir de fora da pasta de instalacao.
