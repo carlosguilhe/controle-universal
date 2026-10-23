@@ -1,0 +1,20 @@
+# Resultado de compilação (os binários vão nas Releases, não no Git)
+saida/
+android/saida/
+android/obj/
+obj/
+Levar-para-outro-PC/
+
+# Chaves de assinatura do app: NUNCA versionar
+*.jks
+*.keystore
+*.idsig
+
+# Lixo do sistema e logs
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Substituido pelo README.md
+LEIA-ME.md

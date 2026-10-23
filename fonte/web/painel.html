@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel do Controle Universal</title>
+<style>
+  :root { --bg:#0e1116; --painel:#171b22; --borda:#262c36; --texto:#e8ecf2; --suave:#8b95a5; --destaque:#4c9aff; --erro:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--texto); font:16px/1.5 system-ui,"Segoe UI",sans-serif; }
+  .pagina { max-width: 880px; margin: 0 auto; padding: 24px 16px 48px; display:grid; gap:20px; }
+  h1 { margin:0; font-size:24px; } h2 { margin:0 0 10px; font-size:16px; color:var(--suave); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .cartao { background:var(--painel); border:1px solid var(--borda); border-radius:14px; padding:18px; }
+  .codigo { font-size:56px; letter-spacing:.25em; font-weight:700; font-variant-numeric:tabular-nums; }
+  .suave { color:var(--suave); font-size:14px; }
+  .qrs { display:flex; flex-wrap:wrap; gap:20px; }
+  .qr { text-align:center; max-width:220px; }
+  .qr .img { background:#fff; padding:10px; border-radius:10px; display:inline-block; }
+  .qr .img svg { display:block; width:180px; height:180px; }
+  .qr code { display:block; word-break:break-all; font-size:13px; margin-top:6px; }
+  button { background:var(--painel); border:1px solid var(--borda); color:var(--texto); border-radius:10px; padding:8px 14px; font:inherit; cursor:pointer; }
+  button:hover { border-color:var(--destaque); }
+  button.p { background:var(--destaque); color:#06121f; border-color:var(--destaque); font-weight:600; }
+  input { background:var(--bg); border:1px solid var(--borda); color:var(--texto); border-radius:8px; padding:8px 10px; font:inherit; min-width:0; }
+  .linha { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  select { background:var(--bg); border:1px solid var(--borda); color:var(--texto); border-radius:8px; padding:8px 10px; font:inherit; min-width:0; }
+  .linha select.u { flex:1; } .linha label { flex:none; color:var(--suave); font-size:14px; }
+  .linha input.t { width:150px; flex:none; } .linha input.u { flex:1; } .linha input.c { width:48px; padding:2px; height:38px; flex:none; }
+  .dev { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid var(--borda); }
+  .dev:first-child { border-top:0; }
+  ol { margin:6px 0 0; padding-left:22px; }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <div><h1>Controle Universal</h1><div class="suave" id="sub"></div></div>
+
+  <div class="cartao">
+    <h2>1. Conecte o celular</h2>
+    <ol>
+      <li>Celular e PC na mesma rede Wi‑Fi.</li>
+      <li>No celular, aponte a câmera para o QR Code (ou digite o endereço no navegador).</li>
+      <li>Digite o código abaixo na tela do celular.</li>
+    </ol>
+    <div class="codigo" id="codigo">······</div>
+    <div class="suave">O código muda depois de cada conexão. </div>
+    <p><button id="novoCodigo">Gerar outro código</button></p>
+  </div>
+
+  <div class="cartao">
+    <h2>Endereços</h2>
+    <div class="qrs" id="qrs"></div>
+    <p class="suave">Use o primeiro (com <b>.local</b>) quando possível: ele não muda mesmo que o roteador troque o número do PC. Se o celular não abrir o endereço .local, use o de números. O app do celular também encontra o PC sozinho pelo nome, mesmo que o número mude.</p>
+  </div>
+
+  <div class="cartao" id="cartaoApk" style="display:none">
+    <h2>Instalar o app no celular</h2>
+    <p class="suave" style="margin-top:0">Com o celular na mesma Wi‑Fi, aponte a câmera para o QR Code e abra o arquivo baixado. O Android pode pedir para permitir a instalação de apps desta fonte.</p>
+    <div class="qrs" id="qrApk"></div>
+  </div>
+
+  <div class="cartao">
+    <h2>Celulares pareados</h2>
+    <div id="devs"></div>
+  </div>
+
+  <div class="cartao">
+    <h2>Configurações</h2>
+    <div class="linha"><label style="width:180px">Nome do PC no celular</label><input id="cfgApelido" class="u" placeholder="(nome do Windows)" maxlength="40"></div>
+    <div class="linha"><label style="width:180px">Navegador dos sites</label><select id="cfgNav" class="u"></select></div>
+    <div class="linha"><label style="width:180px">Pasta dos arquivos recebidos</label><input id="cfgPasta" class="u"><button id="abrirPasta">Abrir</button></div>
+    <p><button class="p" id="cfgSalvar">Salvar configurações</button> <span class="suave" id="cfgMsg"></span></p>
+  </div>
+
+  <div class="cartao">
+    <h2>Botões de sites <span class="suave" id="nav" style="text-transform:none"></span></h2>
+    <div id="sites"></div>
+    <p><button id="addSite">+ Adicionar site</button> <button class="p" id="salvar">Salvar</button> <span class="suave" id="msg"></span></p>
+  </div>
+</div>
+<script src="/qrcode.js"></script>
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  function api(p, corpo) {
+    var o = { headers: { 'X-Painel': '1', 'Content-Type': 'application/json' } };
+    if (corpo !== undefined) { o.method = 'POST'; o.body = JSON.stringify(corpo); }
+    return fetch(p, o).then(function (r) { return r.json(); });
+  }
+  function linhaSite(s) {
+    var d = document.createElement('div'); d.className = 'linha';
+    d.innerHTML = '<input class="c" type="color"><input class="t" placeholder="Nome"><input class="u" placeholder="https://..."><button>✕</button>';
+    d.children[0].value = s.cor || '#3b4252'; d.children[1].value = s.titulo || ''; d.children[2].value = s.url || '';
+    d.children[3].onclick = function () { d.remove(); };
+    $('#sites').appendChild(d);
+  }
+  function qr(url) {
+    var q = qrcode(0, 'M'); q.addData(url); q.make();
+    var d = document.createElement('div'); d.className = 'qr';
+    d.innerHTML = '<div class="img">' + q.createSvgTag(4, 0) + '</div><code></code>';
+    d.querySelector('code').textContent = url.replace(/\/$/, '');
+    return d;
+  }
+  function carregar(primeira) {
+    api('/api/painel/estado').then(function (e) {
+      $('#sub').textContent = 'Computador: ' + e.nome;
+      $('#codigo').textContent = e.codigo;
+      $('#nav').textContent = e.navegador ? '(navegador: ' + e.navegador + ')' : '(nenhum navegador encontrado)';
+      var q = $('#qrs'); q.innerHTML = ''; e.urls.forEach(function (u) { q.appendChild(qr(u)); });
+      var dv = $('#devs'); dv.innerHTML = '';
+      if (!e.dispositivos.length) dv.innerHTML = '<div class="suave">Nenhum ainda.</div>';
+      var qa = $('#qrApk'); qa.innerHTML = ''; $('#cartaoApk').style.display = e.apks && e.apks.length ? '' : 'none';
+      (e.apks || []).forEach(function (u) { qa.appendChild(qr(u)); });
+      if (primeira) {
+        $('#cfgApelido').value = e.apelido || '';
+        var sel = $('#cfgNav'); sel.innerHTML = '<option value="">Automático (Brave, depois Chrome, depois Edge)</option>';
+        (e.navegadores || []).forEach(function (n) { var o = document.createElement('option'); o.value = n.caminho; o.textContent = n.nome; sel.appendChild(o); });
+        sel.value = e.navegadorConfig || '';
+        $('#cfgPasta').value = e.recebidos || '';
+      }
+      e.dispositivos.forEach(function (x) {
+        var d = document.createElement('div'); d.className = 'dev';
+        d.innerHTML = '<span><b></b> <span class="suave"></span></span><button>Remover</button>';
+        d.querySelector('b').textContent = (x.online ? '● ' : '○ ') + x.nome;
+        d.querySelector('b').style.color = x.online ? '#3ccf91' : '';
+        d.querySelector('.suave').textContent = (x.online ? 'online agora' : (x.visto ? 'visto ' + x.visto : 'desde ' + x.criado));
+        d.querySelector('button').onclick = function () { api('/api/painel/revogar', { id: x.id }).then(function () { carregar(); }); };
+        dv.appendChild(d);
+      });
+      if (primeira) { $('#sites').innerHTML = ''; e.sites.forEach(linhaSite); }
+    });
+  }
+  $('#cfgSalvar').onclick = function () {
+    api('/api/painel/config', { apelido: $('#cfgApelido').value, navegador: $('#cfgNav').value, recebidos: $('#cfgPasta').value }).then(function (r) {
+      $('#cfgMsg').textContent = r.ok ? 'Salvo.' : (r.erro || 'Não consegui salvar.'); carregar(true);
+    });
+  };
+  $('#abrirPasta').onclick = function () { api('/api/painel/abrir-recebidos', {}); };
+  $('#novoCodigo').onclick = function () { api('/api/painel/codigo', {}).then(function () { carregar(); }); };
+  $('#addSite').onclick = function () { linhaSite({}); };
+  $('#salvar').onclick = function () {
+    var sites = [].map.call($('#sites').children, function (d) {
+      return { cor: d.children[0].value, titulo: d.children[1].value, url: d.children[2].value };
+    });
+    api('/api/painel/sites', { sites: sites }).then(function (r) {
+      $('#msg').textContent = r.ok ? 'Salvo (' + r.total + ' botões).' : 'Erro ao salvar.';
+      carregar(true);
+    });
+  };
+  carregar(true);
+  setInterval(function () { carregar(); }, 3000);
+})();
+</script>
+</body>
+</html>

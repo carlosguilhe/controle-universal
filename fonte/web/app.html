@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<title>Controle Universal</title>
+<style>
+  :root {
+    --bg: #0e1116; --painel: #171b22; --borda: #262c36; --texto: #e8ecf2; --suave: #8b95a5;
+    --destaque: #4c9aff; --ok: #3ccf91; --erro: #ff6b6b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--texto);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--borda); }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--erro); flex: none; }
+  .ponto.on { background: var(--ok); }
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px 16px; gap: 12px; overflow-y: auto; }
+  nav { display: flex; border-top: 1px solid var(--borda); background: var(--painel); }
+  nav button { flex: 1; padding: 12px 0 10px; background: none; border: 0; color: var(--suave); font: inherit; font-size: 12px; }
+  nav button b { display: block; font-size: 20px; font-weight: 400; }
+  nav button.ativo { color: var(--destaque); }
+  .aba { display: none; flex: 1; min-height: 0; flex-direction: column; gap: 12px; }
+  .aba.ativa { display: flex; }
+  button.btn { background: var(--painel); border: 1px solid var(--borda); color: var(--texto); border-radius: 12px;
+    padding: 14px 10px; font: inherit; min-height: 52px; }
+  button.btn:active { background: #202632; }
+  button.btn.liga { border-color: var(--destaque); color: var(--destaque); }
+  button.primario { background: var(--destaque); border-color: var(--destaque); color: #06121f; font-weight: 600; }
+  input, textarea { width: 100%; background: var(--painel); border: 1px solid var(--borda); color: var(--texto);
+    border-radius: 12px; padding: 12px 14px; font: inherit; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+  .linha { display: flex; gap: 10px; }
+  .linha > * { flex: 1; }
+  .suave { color: var(--suave); font-size: 14px; }
+  .erro { color: var(--erro); }
+
+  /* touchpad */
+  #pad { flex: 1; min-height: 220px; background: var(--painel); border: 1px solid var(--borda); border-radius: 16px;
+    touch-action: none; position: relative; display: flex; align-items: center; justify-content: center; user-select: none; }
+  #pad span { color: var(--suave); font-size: 14px; text-align: center; padding: 0 24px; pointer-events: none; }
+  #pad.arrastando { border-color: var(--destaque); }
+
+  /* sites */
+  .site { color: #fff; border: 0; border-radius: 14px; padding: 18px 8px; font: inherit; font-weight: 600; min-height: 76px; }
+  .site:active { filter: brightness(.85); }
+
+  /* pc encontrados */
+  .pc { display: flex; justify-content: space-between; align-items: center; background: var(--painel);
+    border: 1px solid var(--borda); border-radius: 12px; padding: 14px; text-align: left; color: var(--texto); font: inherit; width: 100%; }
+  .pc small { color: var(--suave); display: block; }
+
+  /* pareamento */
+  #parear { display: none; flex: 1; flex-direction: column; justify-content: center; gap: 14px; padding: 24px 16px; }
+  #codigo { font-size: 32px; letter-spacing: .4em; text-align: center; }
+  .toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #000c; padding: 8px 16px;
+    border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <span class="ponto" id="ponto"></span>
+  <h1 id="titulo">Controle Universal</h1>
+</header>
+
+<section id="parear">
+  <h2 style="margin:0">Conectar a este computador</h2>
+  <p class="suave" style="margin:0">Digite o código de 6 números que aparece no painel do computador (ícone ao lado do relógio, “Abrir painel”).</p>
+  <input id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off">
+  <button class="btn primario" id="btnParear">Conectar</button>
+  <div class="erro" id="erroParear"></div>
+</section>
+
+<main id="principal">
+  <section class="aba ativa" id="aba-mouse">
+    <div id="pad"><span>Deslize para mover o mouse.<br>Toque = clique · dois dedos = rolar · dois dedos tocando = clique direito</span></div>
+    <div class="linha">
+      <button class="btn" id="bEsq">Clique</button>
+      <button class="btn" id="bDir">Direito</button>
+      <button class="btn" id="bArr">Arrastar</button>
+    </div>
+  </section>
+
+  <section class="aba" id="aba-teclado">
+    <textarea id="texto" rows="2" placeholder="Digite aqui e toque em Enviar"></textarea>
+    <div class="linha">
+      <button class="btn primario" id="bEnviar">Enviar texto</button>
+      <button class="btn" data-k="enter">Enter</button>
+      <button class="btn" data-k="backspace">⌫</button>
+    </div>
+    <div class="grade">
+      <button class="btn" data-k="esc">Esc</button>
+      <button class="btn" data-k="tab">Tab</button>
+      <button class="btn" data-k="up">▲</button>
+      <button class="btn" data-k="left">◀</button>
+      <button class="btn" data-k="down">▼</button>
+      <button class="btn" data-k="right">▶</button>
+      <button class="btn" data-k="f11">Tela cheia</button>
+      <button class="btn" data-k="alt+tab">Alt+Tab</button>
+      <button class="btn" data-k="alt+f4">Fechar janela</button>
+      <button class="btn" data-k="ctrl+w">Fechar aba</button>
+      <button class="btn" data-k="ctrl+l">Endereço</button>
+      <button class="btn" data-k="f5">Atualizar</button>
+    </div>
+  </section>
+
+  <section class="aba" id="aba-midia">
+    <div class="grade">
+      <button class="btn" data-k="prev">⏮ Anterior</button>
+      <button class="btn primario" data-k="playpause">⏯ Play/Pausa</button>
+      <button class="btn" data-k="next">⏭ Próxima</button>
+      <button class="btn" data-k="voldown">🔉 Volume −</button>
+      <button class="btn" data-k="mute">🔇 Mudo</button>
+      <button class="btn" data-k="volup">🔊 Volume +</button>
+      <button class="btn" data-k="left">⏪ Voltar</button>
+      <button class="btn" data-k="space">Espaço</button>
+      <button class="btn" data-k="right">⏩ Avançar</button>
+      <button class="btn" data-k="f">Tela cheia (F)</button>
+      <button class="btn" data-k="m">Mudo (M)</button>
+      <button class="btn" data-k="c">Legenda (C)</button>
+    </div>
+  </section>
+
+  <section class="aba" id="aba-sites">
+    <div class="grade" id="grade-sites"></div>
+    <button class="btn" id="bNavegador">Abrir navegador em branco</button>
+    <input id="endereco" type="url" inputmode="url" placeholder="Abrir endereço (ex.: https://...)" autocapitalize="off">
+    <button class="btn" id="bAbrirUrl">Abrir endereço</button>
+    <div class="suave" id="infoNav"></div>
+  </section>
+
+  <section class="aba" id="aba-pcs">
+    <button class="btn primario" id="bBuscar">Procurar computadores na rede</button>
+    <div class="suave" id="statusBusca"></div>
+    <div id="listaPcs" style="display:flex;flex-direction:column;gap:10px"></div>
+    <p class="suave">Para controlar outro computador, instale o Controle Universal nele. Ele aparece aqui e você escolhe qual usar.</p>
+    <button class="btn" id="bSair">Desconectar este celular</button>
+  </section>
+</main>
+
+<nav id="menu">
+  <button data-aba="mouse" class="ativo"><b>🖱️</b>Mouse</button>
+  <button data-aba="teclado"><b>⌨️</b>Teclado</button>
+  <button data-aba="midia"><b>🎚️</b>Mídia</button>
+  <button data-aba="sites"><b>🌐</b>Sites</button>
+  <button data-aba="pcs"><b>💻</b>PCs</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var TOKEN_KEY = 'cu_token';
+  var token = null;
+  try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+  var ws = null, tentativa = 0, infoPc = null;
+
+  function toast(t) {
+    var el = $('#toast'); el.textContent = t; el.classList.add('on');
+    clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove('on'); }, 1600);
+  }
+  function vibra() { try { navigator.vibrate && navigator.vibrate(8); } catch (e) {} }
+
+  /* ---------- conexao ---------- */
+  function enviar(s) { if (ws && ws.readyState === 1) ws.send(s); }
+
+  function conectar() {
+    if (!token) return mostrarParear();
+    fetch('/api/sites', { headers: { 'X-Token': token } }).then(function (r) {
+      if (r.status === 401) { token = null; try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} return mostrarParear(); }
+      return r.json().then(function (d) { mostrarApp(); montarSites(d); abrirWs(); });
+    }).catch(function () { $('#ponto').classList.remove('on'); setTimeout(conectar, 2000); });
+  }
+
+  function abrirWs() {
+    if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} }
+    ws = new WebSocket('ws://' + location.host + '/ws?t=' + encodeURIComponent(token));
+    ws.onopen = function () { $('#ponto').classList.add('on'); tentativa = 0; };
+    ws.onclose = function () {
+      $('#ponto').classList.remove('on');
+      tentativa++; setTimeout(conectar, Math.min(1000 * tentativa, 5000));
+    };
+    ws.onerror = function () { try { ws.close(); } catch (e) {} };
+  }
+  setInterval(function () { enviar('p'); }, 20000);
+
+  function mostrarParear() {
+    $('#parear').style.display = 'flex'; $('#principal').style.display = 'none'; $('#menu').style.display = 'none';
+  }
+  function mostrarApp() {
+    $('#parear').style.display = 'none'; $('#principal').style.display = 'flex'; $('#menu').style.display = 'flex';
+  }
+
+  function nomeAparelho() {
+    var ua = navigator.userAgent;
+    if (/iPhone/.test(ua)) return 'iPhone';
+    if (/iPad/.test(ua)) return 'iPad';
+    if (/Android/.test(ua)) return 'Android';
+    return 'Celular';
+  }
+
+  $('#btnParear').onclick = function () {
+    var codigo = $('#codigo').value.trim();
+    $('#erroParear').textContent = '';
+    fetch('/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo: codigo, nome: nomeAparelho() }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (!x.ok) { $('#erroParear').textContent = x.d.erro || 'Não deu certo.'; return; }
+        token = x.d.token; try { localStorage.setItem(TOKEN_KEY, token); } catch (e) {}
+        conectar();
+      }).catch(function () { $('#erroParear').textContent = 'Sem conexão com o computador.'; });
+  };
+  $('#codigo').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#btnParear').click(); });
+
+  fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
+    infoPc = d; $('#titulo').textContent = d.nome;
+  }).catch(function () {});
+
+  /* ---------- abas ---------- */
+  document.querySelectorAll('nav button').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelectorAll('nav button').forEach(function (x) { x.classList.toggle('ativo', x === b); });
+      document.querySelectorAll('.aba').forEach(function (a) { a.classList.toggle('ativa', a.id === 'aba-' + b.dataset.aba); });
+    };
+  });
+
+  /* ---------- teclas ---------- */
+  document.querySelectorAll('[data-k]').forEach(function (b) {
+    b.addEventListener('click', function () { enviar('k ' + b.dataset.k); vibra(); });
+  });
+  $('#bEnviar').onclick = function () {
+    var t = $('#texto').value; if (!t) return;
+    enviar('t ' + t); $('#texto').value = ''; vibra();
+  };
+
+  /* ---------- sites ---------- */
+  function montarSites(d) {
+    var g = $('#grade-sites'); g.innerHTML = '';
+    (d.sites || []).forEach(function (s) {
+      var b = document.createElement('button');
+      b.className = 'site'; b.textContent = s.titulo; b.style.background = s.cor || '#3b4252';
+      b.onclick = function () { enviar('o ' + s.id); toast('Abrindo ' + s.titulo + '…'); vibra(); };
+      g.appendChild(b);
+    });
+    $('#infoNav').textContent = d.navegador ? 'Navegador usado no PC: ' + d.navegador : 'Nenhum navegador encontrado no PC.';
+  }
+  $('#bNavegador').onclick = function () { enviar('n'); toast('Abrindo navegador…'); };
+  $('#bAbrirUrl').onclick = function () {
+    var u = $('#endereco').value.trim(); if (!u) return;
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    enviar('u ' + u); toast('Abrindo…');
+  };
+
+  /* ---------- touchpad ---------- */
+  var pad = $('#pad');
+  var dedos = 0, ultimo = null, pendX = 0, pendY = 0, pendRoda = 0;
+  var inicioToque = 0, moveuTotal = 0, maxDedos = 0, ultimoTap = 0, arrastando = false, travaArrasto = false;
+  var gestoRoda = false;
+
+  function centro(ts) {
+    var x = 0, y = 0; for (var i = 0; i < ts.length; i++) { x += ts[i].clientX; y += ts[i].clientY; }
+    return { x: x / ts.length, y: y / ts.length };
+  }
+  function setArrasto(on) {
+    if (on === arrastando) return;
+    arrastando = on; pad.classList.toggle('arrastando', on);
+    enviar('b l ' + (on ? 'd' : 'u'));
+  }
+
+  pad.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    var agora = Date.now();
+    if (e.touches.length === 1) {
+      inicioToque = agora; moveuTotal = 0; maxDedos = 1; gestoRoda = false;
+      if (agora - ultimoTap < 300 && !travaArrasto) setArrasto(true);
+    } else { maxDedos = Math.max(maxDedos, e.touches.length); gestoRoda = e.touches.length >= 2; }
+    ultimo = centro(e.touches);
+  }, { passive: false });
+
+  pad.addEventListener('touchmove', function (e) {
+    e.preventDefault();
+    var c = centro(e.touches);
+    if (!ultimo) { ultimo = c; return; }
+    var dx = c.x - ultimo.x, dy = c.y - ultimo.y;
+    ultimo = c;
+    moveuTotal += Math.abs(dx) + Math.abs(dy);
+    if (e.touches.length >= 2) { pendRoda += dy * 3; }
+    else {
+      var v = Math.sqrt(dx * dx + dy * dy);
+      var ganho = 1.2 + Math.min(v / 12, 2.2);      // acelera com a velocidade do dedo
+      pendX += dx * ganho; pendY += dy * ganho;
+    }
+  }, { passive: false });
+
+  pad.addEventListener('touchend', function (e) {
+    e.preventDefault();
+    if (e.touches.length > 0) { ultimo = centro(e.touches); return; }
+    var dur = Date.now() - inicioToque;
+    if (moveuTotal < 10 && dur < 250 && !travaArrasto) {
+      if (arrastando) { setArrasto(false); enviar('b l c'); }
+      else if (maxDedos >= 2) { enviar('b r c'); }
+      else { enviar('b l c'); ultimoTap = Date.now(); }
+      vibra();
+    } else if (arrastando && !travaArrasto) { setArrasto(false); }
+    ultimo = null;
+  }, { passive: false });
+
+  pad.addEventListener('touchcancel', function () { ultimo = null; if (!travaArrasto) setArrasto(false); });
+
+  setInterval(function () {
+    if (pendX || pendY) {
+      var x = Math.round(pendX), y = Math.round(pendY);
+      pendX -= x; pendY -= y;
+      if (x || y) enviar('m ' + x + ' ' + y);
+    }
+    if (Math.abs(pendRoda) >= 1) { var r = Math.round(pendRoda); pendRoda -= r; enviar('w ' + r); }
+  }, 16);
+
+  $('#bEsq').onclick = function () { enviar('b l c'); vibra(); };
+  $('#bDir').onclick = function () { enviar('b r c'); vibra(); };
+  $('#bArr').onclick = function () {
+    travaArrasto = !travaArrasto; $('#bArr').classList.toggle('liga', travaArrasto);
+    setArrasto(travaArrasto);
+    toast(travaArrasto ? 'Arrastar ligado: mova o dedo' : 'Arrastar desligado');
+  };
+
+  /* ---------- procurar computadores ---------- */
+  function sondar(ip, porta) {
+    var c = new AbortController(); var t = setTimeout(function () { c.abort(); }, 1000);
+    return fetch('http://' + ip + ':' + porta + '/api/info', { signal: c.signal })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { clearTimeout(t); return (d && d.app === 'controle-universal') ? { ip: ip, d: d } : null; })
+      .catch(function () { clearTimeout(t); return null; });
+  }
+
+  $('#bBuscar').onclick = function () {
+    var lista = $('#listaPcs'); lista.innerHTML = '';
+    var status = $('#statusBusca');
+    fetch('/api/info').then(function (r) { return r.json(); }).then(function (info) {
+      var prefixos = {};
+      (info.ips || []).forEach(function (ip) { prefixos[ip.split('.').slice(0, 3).join('.')] = 1; });
+      var alvos = [];
+      Object.keys(prefixos).forEach(function (p) { for (var i = 1; i < 255; i++) alvos.push(p + '.' + i); });
+      var feitos = 0, achados = {};
+      var fila = alvos.slice();
+      status.textContent = 'Procurando… 0%';
+      function adicionar(r) {
+        if (!r || achados[r.d.id]) return; achados[r.d.id] = 1;
+        var aqui = r.d.id === info.id;
+        var b = document.createElement('button'); b.className = 'pc';
+        b.innerHTML = '<span></span><span class="suave"></span>';
+        b.firstChild.innerHTML = '<b></b><small></small>';
+        b.firstChild.firstChild.textContent = r.d.nome;
+        b.firstChild.lastChild.textContent = r.ip;
+        b.lastChild.textContent = aqui ? 'em uso' : 'abrir ›';
+        b.onclick = function () { if (!aqui) location.href = 'http://' + r.ip + ':' + r.d.porta + '/'; };
+        lista.appendChild(b);
+      }
+      function trabalhador() {
+        var ip = fila.shift(); if (!ip) return Promise.resolve();
+        return sondar(ip, info.porta).then(function (r) {
+          adicionar(r); feitos++;
+          if (feitos % 20 === 0) status.textContent = 'Procurando… ' + Math.round(feitos * 100 / alvos.length) + '%';
+          return trabalhador();
+        });
+      }
+      var ws_ = []; for (var i = 0; i < 40; i++) ws_.push(trabalhador());
+      Promise.all(ws_).then(function () {
+        status.textContent = Object.keys(achados).length ? 'Pronto. Toque no computador que quer controlar.' : 'Nenhum computador encontrado.';
+      });
+    }).catch(function () { status.textContent = 'Sem conexão com o computador.'; });
+  };
+
+  $('#bSair').onclick = function () {
+    if (!confirm('Desconectar este celular? Será preciso digitar o código de novo.')) return;
+    try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    token = null; if (ws) { ws.onclose = null; ws.close(); } mostrarParear();
+  };
+
+  conectar();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1836 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Controle Universal</title>
+<style>
+  :root {
+    --bg: #111114; --card: #1c1c21; --card2: #25252b; --borda: #2c2c33; --texto: #f2f2f4; --suave: #8a8a94;
+    --muted: #5e5e68; --destaque: #e8590c; --destaque2: #c94d09; --ok: #3ccf91; --erro: #ff5d5d;
+    --laranja-fundo: #3a1d0d; --ok-fundo: #11301f; --erro-fundo: #3a1414; --nav: #0c0c0f; --grip: #3d3d46;
+  }
+  :root[data-tema="claro"] {
+    --bg: #f4f4f6; --card: #ffffff; --card2: #ebebef; --borda: #dcdce2; --texto: #17171c; --suave: #6a6a75;
+    --muted: #9a9aa6; --laranja-fundo: #ffe6d6; --ok-fundo: #d9f5e8; --erro-fundo: #ffe0e0; --nav: #ffffff; --grip: #cfcfd6;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--texto);
+    font: 16px/1.4 system-ui, Roboto, sans-serif; overscroll-behavior: none; user-select: none; -webkit-user-select: none; }
+  body { display: flex; flex-direction: column; }
+  .i { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .i.cheio { fill: currentColor; }
+  .i.g { width: 30px; height: 30px; }
+  .tela { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .tela.ativa { display: flex; }
+
+  header { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 6px; min-height: 58px; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icb { background: none; border: 0; color: var(--texto); width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; padding: 0; flex: none; }
+  .icb:active { background: var(--card); }
+  .ponto { width: 9px; height: 9px; border-radius: 50%; background: var(--erro); flex: none; }
+  .ponto.on { background: var(--ok); }
+
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 6px 16px 14px; gap: 12px; overflow-y: auto; }
+  nav { display: flex; background: var(--nav); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  nav button { flex: 1; padding: 6px 0 4px; background: none; border: 0; color: var(--muted); font: inherit; font-size: 11px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  nav button.ativo { color: var(--destaque); }
+  .aba { display: none; flex: 1; min-height: 0; flex-direction: column; gap: 12px; }
+  .aba.ativa { display: flex; }
+  .aba > * { flex-shrink: 0; }
+  .aba > .mousewrap { flex-shrink: 1; }
+
+  .btn { background: var(--card); border: 0; color: var(--texto); border-radius: 999px; padding: 0 14px; font: inherit; font-size: 15px;
+    min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn:active, .btn.press { background: var(--card2); transform: scale(.97); }
+  .btn.primario { background: var(--destaque); color: #fff; font-weight: 600; }
+  .btn.primario:active { background: var(--destaque2); }
+  .btn.liga { background: var(--laranja-fundo); color: var(--destaque); box-shadow: inset 0 0 0 1.5px var(--destaque); }
+  .btn.perigo { color: var(--erro); }
+  .btn.confirmar { background: var(--erro-fundo); color: var(--erro); box-shadow: inset 0 0 0 1.5px var(--erro); }
+  .btn.peq { min-height: 46px; font-size: 14px; }
+  .btn.tgl { justify-content: space-between; padding: 0 18px 0 22px; text-align: left; }
+  .btn.linha-menu { justify-content: flex-start; gap: 14px; padding: 0 18px; border-radius: 24px; min-height: 58px; text-align: left; }
+  .btn.linha-menu .rot { flex: 1; }
+  .btn.linha-menu .i:last-child { color: var(--muted); width: 18px; height: 18px; }
+  input, textarea { width: 100%; background: var(--card); border: 1.5px solid transparent; color: var(--texto);
+    border-radius: 20px; padding: 14px 18px; font: inherit; user-select: text; -webkit-user-select: text; outline: none; }
+  input:focus, textarea:focus { border-color: var(--destaque); }
+  input::placeholder, textarea::placeholder { color: var(--muted); }
+  input[type=range] { padding: 0; height: 36px; background: none; border-radius: 0; accent-color: var(--destaque); border: 0; }
+  input[type=color] { width: 40px; height: 40px; padding: 2px; border-radius: 50%; flex: none; background: var(--card2); }
+  .linha { display: flex; gap: 10px; } .linha > * { flex: 1; min-width: 0; }
+  .grade3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .grade2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .suave { color: var(--suave); font-size: 14px; }
+  .erro { color: var(--erro); font-size: 14px; }
+  h2 { font-size: 22px; margin: 0; font-weight: 600; }
+  .pill { font-size: 12px; padding: 5px 10px; border-radius: 999px; background: var(--card2); color: var(--suave); white-space: nowrap; }
+  .pill.on { background: var(--ok-fundo); color: var(--ok); }
+  .btn.tgl .pill.on { background: var(--laranja-fundo); color: var(--destaque); }
+  .subtopo { display: flex; align-items: center; gap: 4px; margin: 0 -8px 0 -10px; font-size: 18px; font-weight: 600; }
+
+  /* lista de PCs */
+  #listaPcs { display: flex; flex-direction: column; gap: 10px; }
+  .pc { display: flex; align-items: center; gap: 14px; background: var(--card); border-radius: 24px;
+    padding: 14px 16px; width: 100%; text-align: left; color: var(--texto); font: inherit; }
+  .pc:active { background: var(--card2); }
+  .pc .bola { width: 46px; height: 46px; border-radius: 50%; background: var(--card2); display: flex; align-items: center; justify-content: center; color: var(--suave); flex: none; }
+  .pc.on .bola { background: var(--laranja-fundo); color: var(--destaque); }
+  .pc .info { flex: 1; min-width: 0; }
+  .pc .info b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pc .info small { color: var(--suave); font-size: 13px; }
+  .pc .ligar { background: var(--destaque); color: #fff; border: 0; border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 600; }
+
+  /* mouse */
+  .mousewrap { flex: 1; min-height: 0; display: flex; gap: 10px; }
+  #pad { flex: 1; min-width: 0; min-height: 220px; background: var(--card); border-radius: 28px; touch-action: none; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; overflow: hidden; }
+  #pad .dica { color: var(--muted); font-size: 14px; text-align: center; padding: 0 22px; pointer-events: none; line-height: 1.6; }
+  #pad .i.g { color: var(--destaque); width: 38px; height: 38px; pointer-events: none; }
+  #pad.arrastando { box-shadow: inset 0 0 0 2px var(--destaque); }
+  .onda { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: #e8590c55;
+    pointer-events: none; animation: onda .45s ease-out forwards; }
+  @keyframes onda { to { transform: scale(5); opacity: 0; } }
+  #rolagem { width: 68px; flex: none; background: var(--card); border-radius: 28px; touch-action: none; position: relative;
+    overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 14px 0; color: var(--muted); }
+  #rolagem .grip { position: absolute; inset: 44px 0; background-image: repeating-linear-gradient(to bottom, var(--grip) 0 3px, transparent 3px 22px);
+    pointer-events: none; mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent); }
+  #rolagem.ativa { box-shadow: inset 0 0 0 2px var(--destaque); color: var(--destaque); }
+  #rolagem.ativa .grip { background-image: repeating-linear-gradient(to bottom, #e8590c66 0 3px, transparent 3px 22px); }
+  #rolagem .i { position: relative; z-index: 1; }
+
+  #faixa { display: none; background: var(--laranja-fundo); color: #ffb48a; text-align: center; font-size: 13px; padding: 7px 12px; }
+  #faixa.on { display: block; }
+
+  /* direcional */
+  .dpad { position: relative; width: min(74vw, 300px, 52vh); aspect-ratio: 1; border-radius: 50%; background: var(--card); margin: 4px auto 0; flex: none; }
+  .dpad button { position: absolute; background: none; border: 0; color: var(--texto); width: 30%; height: 30%;
+    display: flex; align-items: center; justify-content: center; border-radius: 50%; padding: 0; }
+  .dpad button:active, .dpad button.press { background: var(--card2); }
+  .dpad .cima { top: 3%; left: 35%; } .dpad .baixo { bottom: 3%; left: 35%; }
+  .dpad .esq { left: 3%; top: 35%; } .dpad .dir { right: 3%; top: 35%; }
+  .dpad .i { width: 30px; height: 30px; }
+  .dpad .ok { position: absolute; inset: 31%; width: auto; height: auto; border-radius: 50%; background: var(--destaque); color: #fff;
+    font: inherit; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 0; }
+  .dpad .ok:active, .dpad .ok.press { background: var(--destaque2); transform: scale(.96); }
+
+  /* volume e midia */
+  .volbar { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 999px; padding: 0 18px; min-height: 54px; }
+  .volbar input { flex: 1; min-width: 0; }
+  .volbar b { min-width: 42px; text-align: right; font-weight: 500; font-size: 14px; color: var(--suave); }
+  .redondo { width: 74px; height: 74px; min-height: 0; border-radius: 50%; padding: 0; flex: none; }
+  .redondo.grande { width: 92px; height: 92px; }
+  .redondo .i { width: 28px; height: 28px; }
+  .redondo.grande .i { width: 36px; height: 36px; }
+  .fila { display: flex; align-items: center; justify-content: space-around; }
+  .agora { background: var(--card); border-radius: 24px; padding: 14px 18px; }
+  .agora .t { font-weight: 600; font-size: 16px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .agora .a { color: var(--suave); font-size: 13px; margin-top: 2px; }
+  .agora .barra { height: 4px; border-radius: 2px; background: var(--card2); margin-top: 10px; overflow: hidden; }
+  .agora .barra i { display: block; height: 100%; background: var(--destaque); width: 0; }
+  .agora .st { font-size: 12px; color: var(--destaque); margin-bottom: 4px; }
+
+  /* sites */
+  .site { display: flex; align-items: center; gap: 12px; background: var(--card); border: 0; border-radius: 24px; padding: 12px 14px;
+    color: var(--texto); font: inherit; font-weight: 600; text-align: left; min-width: 0; }
+  .site:active { background: var(--card2); transform: scale(.98); }
+  .site .ini { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 15px; flex: none; }
+  .site span.t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+
+  /* janelas */
+  .jan { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 22px; padding: 8px 8px 8px 14px; }
+  .jan.ativa { box-shadow: inset 0 0 0 1.5px var(--destaque); }
+  .jan .corpo { flex: 1; min-width: 0; text-align: left; background: none; border: 0; color: var(--texto); font: inherit; padding: 6px 0; }
+  .jan .corpo b { display: block; font-weight: 500; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .jan .corpo small { color: var(--suave); font-size: 12px; }
+  .jan .icb { width: 40px; height: 40px; background: var(--card2); }
+  .jan .icb.confirmar { background: var(--erro-fundo); color: var(--erro); }
+
+  /* editor de botoes */
+  .ed { background: var(--card); border-radius: 22px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .ed .l1 { display: flex; gap: 8px; align-items: center; }
+  .ed input { padding: 10px 14px; border-radius: 16px; background: var(--card2); }
+  .ed .l1 .icb { width: 38px; height: 38px; background: var(--card2); }
+
+  .ajuste { background: var(--card); border-radius: 24px; padding: 14px 18px 8px; }
+  .ajuste .topo { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; }
+  .ajuste .topo b { font-weight: 500; } .ajuste .topo span { color: var(--destaque); font-weight: 600; }
+
+  /* tempo de desligamento */
+  .chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .chips .btn { min-height: 46px; padding: 0; font-size: 14px; }
+  #tmrBox { background: var(--card); border-radius: 24px; padding: 14px 18px; display: none; align-items: center; justify-content: space-between; gap: 10px; }
+  #tmrBox.on { display: flex; }
+  #tmrBox b { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--destaque); }
+
+  /* espelho */
+  #espCorpo { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; touch-action: none; }
+  #espImg { max-width: 100%; max-height: 100%; display: block; touch-action: none; -webkit-user-drag: none; }
+  #espBarra { display: flex; gap: 10px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+  #espBarra .btn { flex: 1; min-height: 46px; font-size: 14px; }
+
+  #pareaCorpo { padding: 8px 20px 24px; gap: 14px; }
+  #codigo { font-size: 34px; letter-spacing: .45em; text-align: center; padding-left: calc(18px + .45em); border-radius: 28px; }
+
+  .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: #000d; padding: 9px 18px;
+    border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9; max-width: 90vw; text-align: center; }
+  .toast.on { opacity: 1; }
+
+  .teclado-aberto nav { display: none; }
+  select { width: 100%; background: var(--card); color: var(--texto); border: 1.5px solid transparent; border-radius: 20px; padding: 13px 16px; font: inherit; outline: none; }
+  .titulo-sec { color: var(--suave); font-size: 13px; margin: 6px 6px 0; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* cenas, agenda e passos */
+  .cena { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 24px; padding: 8px 8px 8px 16px; }
+  .cena .corpo { flex: 1; min-width: 0; text-align: left; background: none; border: 0; color: var(--texto); font: inherit; padding: 8px 0; }
+  .cena .corpo b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cena .corpo small { color: var(--suave); font-size: 13px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cena .icb { background: var(--card2); width: 42px; height: 42px; }
+  .cena .rodar { background: var(--destaque); color: #fff; }
+  .rapidas { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; }
+  .rapidas .btn { min-height: 42px; font-size: 14px; white-space: nowrap; flex: none; padding: 0 16px; }
+  .passo { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 18px; padding: 8px 8px 8px 14px; font-size: 14px; }
+  .passo span { flex: 1; min-width: 0; }
+  .passo .icb { width: 36px; height: 36px; background: var(--card2); }
+  .caixa { background: var(--card); border-radius: 24px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .caixa input, .caixa select, .caixa textarea { background: var(--card2); border-radius: 16px; }
+
+  /* arquivos */
+  .caminho { color: var(--suave); font-size: 13px; padding: 0 6px; word-break: break-all; }
+  .arq { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 18px; padding: 10px 14px; width: 100%; color: var(--texto); border: 0; font: inherit; text-align: left; }
+  .arq:active { background: var(--card2); }
+  .arq .i { color: var(--suave); }
+  .arq.pasta .i { color: var(--destaque); }
+  .arq .nome { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .arq small { color: var(--muted); font-size: 12px; }
+  #arqAcoes { display: none; background: var(--card); border-radius: 24px; padding: 14px; flex-direction: column; gap: 10px; position: sticky; bottom: 0; box-shadow: 0 -6px 20px #0006; }
+  #arqAcoes.on { display: flex; }
+
+  /* apresentacao */
+  .grande-btn { min-height: 92px; font-size: 20px; border-radius: 28px; }
+  #cron { font-size: 40px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; padding: 6px 0; }
+  #padApres { height: 120px; background: var(--card); border-radius: 24px; touch-action: none; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; position: relative; overflow: hidden; }
+
+  /* teclado completo */
+  #tcTeclas { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); }
+  .trow { display: flex; gap: 5px; justify-content: center; }
+  .tk { flex: 1; min-width: 0; min-height: 46px; background: var(--card); color: var(--texto); border: 0; border-radius: 12px; font: inherit; font-size: 16px; padding: 0 2px; max-width: 64px; }
+  .tk:active, .tk.press { background: var(--card2); transform: scale(.95); }
+  .tk.larga { max-width: none; flex: 2; font-size: 14px; }
+  .tk.fn { font-size: 12px; min-height: 36px; }
+  .tk.mod.on { background: var(--destaque); color: #fff; }
+  .tk.mod { font-size: 14px; max-width: none; }
+
+  /* primeira abertura */
+  #onb { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: none; flex-direction: column; padding: 28px 24px calc(24px + env(safe-area-inset-bottom)); gap: 18px; }
+  #onb.on { display: flex; }
+  #onb .passo-onb { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+  #onb .passo-onb .grande { width: 96px; height: 96px; border-radius: 50%; background: var(--laranja-fundo); color: var(--destaque); display: flex; align-items: center; justify-content: center; }
+  #onb .passo-onb .grande .i { width: 44px; height: 44px; }
+  #onb h2 { font-size: 26px; }
+  #onb p { color: var(--suave); font-size: 16px; margin: 0; line-height: 1.5; }
+  #onbPontos { display: flex; gap: 8px; justify-content: center; }
+  #onbPontos i { width: 8px; height: 8px; border-radius: 50%; background: var(--card2); }
+  #onbPontos i.on { background: var(--destaque); width: 22px; border-radius: 4px; }
+
+  @media (orientation: landscape) {
+    header { min-height: 46px; padding-top: 2px; padding-bottom: 2px; }
+    nav button { flex-direction: row; justify-content: center; gap: 6px; padding: 8px 0; }
+    main { padding-top: 2px; padding-bottom: 8px; gap: 8px; }
+    #pad { min-height: 120px; }
+    .redondo { width: 60px; height: 60px; } .redondo.grande { width: 72px; height: 72px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ICONES (conjunto proprio, funciona sem internet) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="i-mouse" viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></symbol>
+  <symbol id="i-gamepad" viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.32 5H6.68a4 4 0 0 0-3.98 3.59C2.6 9.42 2 14.46 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.41-1.41A2 2 0 0 1 9.83 16h4.34a2 2 0 0 1 1.41.59L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.55-.6-6.58-.69-7.26A4 4 0 0 0 17.32 5z"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20 7 4"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><path d="M5 19V5"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><path d="M19 5v14"/></symbol>
+  <symbol id="i-rew" viewBox="0 0 24 24"><polygon points="11 19 2 12 11 5 11 19"/><polygon points="22 19 13 12 22 5 22 19"/></symbol>
+  <symbol id="i-ff" viewBox="0 0 24 24"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></symbol>
+  <symbol id="i-vol1" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M22 9l-6 6M16 9l6 6"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M20 5H9l-7 7 7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="M18 9l-6 6M12 9l6 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="i-janela" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 10l6 6M15 10l-6 6"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L15 22l-4-9-9-4z"/><path d="M22 2L11 13"/></symbol>
+  <symbol id="i-enter" viewBox="0 0 24 24"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-monitoroff" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4M3 3l18 18"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></symbol>
+  <symbol id="i-hdd" viewBox="0 0 24 24"><rect x="2" y="12" width="20" height="8" rx="2"/><path d="M6 16h.01M10 16h.01M2 12l3-8h14l3 8"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></symbol>
+  <symbol id="i-present" viewBox="0 0 24 24"><path d="M2 3h20M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3M12 16v5M8 21h8"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><path d="M12 6h.01"/></symbol>
+</svg>
+
+<!-- LISTA DE COMPUTADORES -->
+<section class="tela ativa" id="t-lista">
+  <header><h1 style="padding-left:10px">Meus computadores</h1>
+    <button class="icb" id="bBuscar" aria-label="Procurar de novo"><svg class="i"><use href="#i-refresh"/></svg></button></header>
+  <main>
+    <div class="suave" id="statusBusca">Procurando computadores…</div>
+    <div id="listaPcs"></div>
+    <div class="linha" style="margin-top:4px">
+      <input id="ipManual" placeholder="Endereço manual (192.168.0.10)" inputmode="decimal" autocapitalize="off">
+      <button class="btn primario" id="bAdd" style="flex:none;width:54px;padding:0" aria-label="Adicionar"><svg class="i"><use href="#i-plus"/></svg></button>
+    </div>
+    <p class="suave" style="margin:2px 6px 0">Instale o <b>Controle Universal</b> no computador, deixe os dois na mesma Wi‑Fi e toque no computador que quer controlar.</p>
+  </main>
+</section>
+
+<!-- PAREAR -->
+<section class="tela" id="t-parear">
+  <header><button class="icb" id="pVoltar" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button><h1 id="pNome">Conectar</h1></header>
+  <main id="pareaCorpo">
+    <h2>Digite o código</h2>
+    <p class="suave" style="margin:0">São 6 números que aparecem no painel do computador (ícone ao lado do relógio, “Abrir painel”).</p>
+    <input id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off">
+    <button class="btn primario" id="btnParear">Conectar</button>
+    <div class="erro" id="erroParear"></div>
+  </main>
+</section>
+
+<!-- CONTROLE -->
+<section class="tela" id="t-controle">
+  <header>
+    <button class="icb" id="cVoltar" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>
+    <span class="ponto" id="ponto"></span><h1 id="cNome"></h1>
+    <button class="icb" id="cTela" aria-label="Espelhar tela"><svg class="i"><use href="#i-monitor"/></svg></button>
+    <button class="icb" id="cMais" aria-label="Mais"><svg class="i"><use href="#i-mais"/></svg></button>
+  </header>
+  <div id="faixa">Sem conexão. Reconectando…</div>
+  <main>
+    <!-- MOUSE -->
+    <section class="aba ativa" id="aba-mouse">
+      <div class="mousewrap">
+        <div id="pad"><svg class="i g"><use href="#i-hand"/></svg>
+          <div class="dica">Deslize para mover<br>Toque = clique · dois dedos tocando = clique direito<br>Dois dedos: rolar ou pinça para zoom<br>Três dedos: trocar de janela</div></div>
+        <div id="rolagem" aria-label="Rolagem"><svg class="i"><use href="#i-up"/></svg><div class="grip"></div><svg class="i"><use href="#i-down"/></svg></div>
+      </div>
+      <div class="linha">
+        <button class="btn" id="bEsq" style="flex:2">Clique</button>
+        <button class="btn" id="bDir">Direito</button>
+        <button class="btn" id="bArr">Arrastar</button>
+      </div>
+    </section>
+
+    <!-- CONTROLE REMOTO -->
+    <section class="aba" id="aba-remoto">
+      <div class="dpad">
+        <button class="cima" data-k="up" aria-label="Cima"><svg class="i"><use href="#i-up"/></svg></button>
+        <button class="baixo" data-k="down" aria-label="Baixo"><svg class="i"><use href="#i-down"/></svg></button>
+        <button class="esq" data-k="left" aria-label="Esquerda"><svg class="i"><use href="#i-left"/></svg></button>
+        <button class="dir" data-k="right" aria-label="Direita"><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="ok" data-k="enter">OK</button>
+      </div>
+      <div class="grade3">
+        <button class="btn" data-k="esc"><svg class="i"><use href="#i-undo"/></svg>Esc</button>
+        <button class="btn" data-k="alt+left"><svg class="i"><use href="#i-left"/></svg>Página</button>
+        <button class="btn" data-k="f11"><svg class="i"><use href="#i-max"/></svg>Tela</button>
+      </div>
+      <div class="volbar"><svg class="i"><use href="#i-vol1"/></svg><input type="range" class="volrange" min="0" max="100" value="50"><svg class="i"><use href="#i-vol"/></svg><b class="voltxt">--</b></div>
+      <div class="grade3">
+        <button class="btn" data-k="voldown" data-rep="1"><svg class="i"><use href="#i-vol1"/></svg></button>
+        <button class="btn" data-k="mute"><svg class="i"><use href="#i-mute"/></svg></button>
+        <button class="btn" data-k="volup" data-rep="1"><svg class="i"><use href="#i-vol"/></svg></button>
+      </div>
+      <div class="volbar" id="briBar" style="display:none"><svg class="i"><use href="#i-sun"/></svg><input type="range" id="briRange" min="5" max="100" value="50"><b id="briTxt">--</b></div>
+      <button class="btn" id="bAudioCard"><svg class="i"><use href="#i-speaker"/></svg><span id="audioNome" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Saída de áudio</span></button>
+      <button class="btn" data-k="playpause"><svg class="i cheio"><use href="#i-play"/></svg>Play / Pausa</button>
+    </section>
+
+    <!-- MIDIA -->
+    <section class="aba" id="aba-midia">
+      <div class="agora" id="agora"><div class="st" id="agSt"></div><div class="t" id="agTitulo">Nada tocando agora</div><div class="a" id="agArt"></div><div class="barra" id="agBarra" style="display:none"><i id="agProg"></i></div></div>
+      <div class="fila">
+        <button class="btn redondo" data-k="left" aria-label="Voltar 5s"><svg class="i"><use href="#i-rew"/></svg></button>
+        <button class="btn primario redondo grande" data-k="playpause" aria-label="Play ou pausa"><svg class="i cheio"><use href="#i-play"/></svg></button>
+        <button class="btn redondo" data-k="right" aria-label="Avançar 5s"><svg class="i"><use href="#i-ff"/></svg></button>
+      </div>
+      <div class="grade3">
+        <button class="btn" data-k="prev"><svg class="i"><use href="#i-prev"/></svg></button>
+        <button class="btn" data-k="space">Espaço</button>
+        <button class="btn" data-k="next"><svg class="i"><use href="#i-next"/></svg></button>
+      </div>
+      <div class="volbar"><svg class="i"><use href="#i-vol1"/></svg><input type="range" class="volrange" min="0" max="100" value="50"><svg class="i"><use href="#i-vol"/></svg><b class="voltxt">--</b></div>
+      <div class="grade3">
+        <button class="btn" data-k="voldown" data-rep="1"><svg class="i"><use href="#i-vol1"/></svg></button>
+        <button class="btn" data-k="mute"><svg class="i"><use href="#i-mute"/></svg></button>
+        <button class="btn" data-k="volup" data-rep="1"><svg class="i"><use href="#i-vol"/></svg></button>
+      </div>
+      <div class="suave" style="margin:4px 6px 0">Atalhos de vídeo</div>
+      <div class="grade3">
+        <button class="btn peq" data-k="f"><svg class="i"><use href="#i-max"/></svg>Tela (F)</button>
+        <button class="btn peq" data-k="m">Mudo (M)</button>
+        <button class="btn peq" data-k="c">Legenda (C)</button>
+      </div>
+    </section>
+
+    <!-- TECLADO -->
+    <section class="aba" id="aba-teclado">
+      <textarea id="texto" rows="2" placeholder="Digite aqui e toque em Enviar"></textarea>
+      <button class="btn peq tgl" id="bVivo"><span>Digitação ao vivo</span><span class="pill">desligada</span></button>
+      <div class="grade2">
+        <button class="btn peq" id="bVoz"><svg class="i"><use href="#i-mic"/></svg>Ditar por voz</button>
+        <button class="btn peq" id="bTecCompleto"><svg class="i"><use href="#i-keyboard"/></svg>Teclado completo</button>
+      </div>
+      <div class="linha">
+        <button class="btn primario" id="bEnviar" style="flex:2"><svg class="i"><use href="#i-send"/></svg>Enviar</button>
+        <button class="btn" data-k="enter" aria-label="Enter"><svg class="i"><use href="#i-enter"/></svg></button>
+        <button class="btn" data-k="backspace" aria-label="Apagar"><svg class="i"><use href="#i-back"/></svg></button>
+      </div>
+      <div class="grade3">
+        <button class="btn peq" data-k="esc">Esc</button>
+        <button class="btn peq" data-k="tab">Tab</button>
+        <button class="btn peq" data-k="f5"><svg class="i"><use href="#i-refresh"/></svg></button>
+        <button class="btn peq" data-k="alt+tab"><svg class="i"><use href="#i-swap"/></svg>Alt+Tab</button>
+        <button class="btn peq" data-k="ctrl+l"><svg class="i"><use href="#i-link"/></svg>Endereço</button>
+        <button class="btn peq" data-k="ctrl+w"><svg class="i"><use href="#i-x"/></svg>Aba</button>
+        <button class="btn peq" data-k="f11"><svg class="i"><use href="#i-max"/></svg>Tela</button>
+        <button class="btn peq" data-k="alt+f4" style="grid-column: span 2"><svg class="i"><use href="#i-janela"/></svg>Fechar janela</button>
+      </div>
+      <div class="suave" style="margin:2px 6px 0">Edição e Windows</div>
+      <div class="grade3">
+        <button class="btn peq" data-k="ctrl+c">Copiar</button>
+        <button class="btn peq" data-k="ctrl+v">Colar</button>
+        <button class="btn peq" data-k="ctrl+a">Tudo</button>
+        <button class="btn peq" data-k="ctrl+z">Desfazer</button>
+        <button class="btn peq" data-k="win">Windows</button>
+        <button class="btn peq" data-k="win+d">Área de trab.</button>
+      </div>
+    </section>
+
+    <!-- SITES -->
+    <section class="aba" id="aba-sites">
+      <div class="titulo-sec" id="cenasTitulo" style="display:none">Cenas</div>
+      <div class="rapidas" id="cenasRapidas"></div>
+      <div class="grade2" id="grade-sites"></div>
+      <div class="suave" style="margin:0 6px">Segure um botão para criar um atalho na tela inicial do celular.</div>
+      <div class="caixa">
+        <div class="linha">
+          <input id="buscaTexto" placeholder="Buscar…" autocapitalize="off" enterkeyhint="search">
+          <button class="icb" id="buscaVoz" aria-label="Buscar por voz" style="flex:none;background:var(--card2)"><svg class="i"><use href="#i-mic"/></svg></button>
+        </div>
+        <select id="buscaOnde">
+          <option value="youtube">no YouTube</option>
+          <option value="google">no Google</option>
+          <option value="netflix">na Netflix</option>
+          <option value="spotify">no Spotify</option>
+        </select>
+        <button class="btn primario" id="buscaIr"><svg class="i"><use href="#i-search"/></svg>Buscar no PC</button>
+      </div>
+      <input id="endereco" type="url" inputmode="url" placeholder="Abrir endereço (ex.: youtube.com)" autocapitalize="off">
+      <div class="linha">
+        <button class="btn primario" id="bAbrirUrl"><svg class="i"><use href="#i-globe"/></svg>Abrir</button>
+        <button class="btn" id="bNavegador">Navegador</button>
+      </div>
+      <div class="suave" id="infoNav" style="margin-left:6px"></div>
+    </section>
+
+    <!-- MAIS (central) -->
+    <section class="aba" id="aba-mais">
+      <div class="pc on" style="cursor:default">
+        <span class="bola"><svg class="i"><use href="#i-laptop"/></svg></span>
+        <span class="info"><b id="mNome"></b><small id="mIp"></small></span>
+        <span class="pill on">conectado</span>
+      </div>
+      <div class="titulo-sec">Ver e controlar</div>
+      <button class="btn linha-menu" data-ir="espelho"><svg class="i"><use href="#i-monitor"/></svg><span class="rot">Espelhar a tela do PC</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn linha-menu" data-ir="janelas"><svg class="i"><use href="#i-layout"/></svg><span class="rot">Janelas abertas</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn linha-menu" data-ir="apres"><svg class="i"><use href="#i-present"/></svg><span class="rot">Apresentação</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn linha-menu" data-ir="audio"><svg class="i"><use href="#i-speaker"/></svg><span class="rot">Saída de áudio</span><svg class="i"><use href="#i-right"/></svg></button>
+      <div class="titulo-sec">Automação</div>
+      <button class="btn linha-menu" data-ir="cenas"><svg class="i"><use href="#i-star"/></svg><span class="rot">Cenas</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn linha-menu" data-ir="agenda"><svg class="i"><use href="#i-cal"/></svg><span class="rot">Agenda</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn linha-menu" data-ir="energia"><svg class="i"><use href="#i-power"/></svg><span class="rot">Energia e timer</span><svg class="i"><use href="#i-right"/></svg></button>
+      <div class="titulo-sec">Arquivos e dados</div>
+      <button class="btn linha-menu" data-ir="arquivos"><svg class="i"><use href="#i-folder"/></svg><span class="rot">Arquivos do PC</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn linha-menu" data-ir="clip"><svg class="i"><use href="#i-clip"/></svg><span class="rot">Área de transferência</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn linha-menu" data-ir="editor"><svg class="i"><use href="#i-edit"/></svg><span class="rot">Editar botões de sites</span><svg class="i"><use href="#i-right"/></svg></button>
+      <div class="titulo-sec">Aplicativo</div>
+      <button class="btn linha-menu" data-ir="ajustes"><svg class="i"><use href="#i-sliders"/></svg><span class="rot">Ajustes</span><svg class="i"><use href="#i-right"/></svg></button>
+      <button class="btn" id="bLista"><svg class="i"><use href="#i-swap"/></svg>Trocar de computador</button>
+      <button class="btn perigo" id="bEsquecer"><svg class="i"><use href="#i-trash"/></svg><span>Esquecer este computador</span></button>
+      <div class="suave" style="margin:2px 6px 0">Controle Universal 4.0</div>
+    </section>
+
+    <!-- JANELAS -->
+    <section class="aba" id="aba-janelas">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Janelas abertas</div>
+      <div id="listaJan" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="suave" id="janVazio"></div>
+    </section>
+
+        <!-- CENAS -->
+    <section class="aba" id="aba-cenas">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Cenas</div>
+      <div class="suave" style="margin:0 6px">Uma cena roda vários passos de uma vez, como abrir um site, ajustar o volume e apagar a tela.</div>
+      <div id="listaCenas" style="display:flex;flex-direction:column;gap:10px"></div>
+      <button class="btn primario" id="cenaNova"><svg class="i"><use href="#i-plus"/></svg>Nova cena</button>
+    </section>
+
+    <!-- EDITOR DE CENA -->
+    <section class="aba" id="aba-cenaEd">
+      <div class="subtopo"><button class="icb" data-ir="cenas" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Editar cena</div>
+      <input id="cenaNome" placeholder="Nome da cena (ex.: Modo cinema)" maxlength="30">
+      <div class="titulo-sec">Passos (rodam em ordem)</div>
+      <div id="cenaPassos" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="caixa">
+        <select id="passoTipo"></select>
+        <div id="passoCampo"></div>
+        <button class="btn" id="passoAdd"><svg class="i"><use href="#i-plus"/></svg>Adicionar passo</button>
+      </div>
+      <div class="linha">
+        <button class="btn" id="cenaTestar"><svg class="i cheio"><use href="#i-play"/></svg>Testar</button>
+        <button class="btn primario" id="cenaSalvar">Salvar</button>
+      </div>
+      <button class="btn peq" id="cenaAtalho"><svg class="i"><use href="#i-star"/></svg>Criar atalho na tela inicial</button>
+      <button class="btn perigo" id="cenaApagar"><svg class="i"><use href="#i-trash"/></svg><span>Apagar cena</span></button>
+    </section>
+
+    <!-- AGENDA -->
+    <section class="aba" id="aba-agenda">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Agenda</div>
+      <div class="suave" style="margin:0 6px">Roda sozinho no horário, desde que o programa esteja aberto no PC (ele fica na bandeja).</div>
+      <div id="listaAgenda" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div class="caixa">
+        <input id="agTit" placeholder="Nome (ex.: Abrir o jornal)" maxlength="30">
+        <div class="linha"><input id="agHora" type="time" value="20:00"><select id="agRepete"><option value="1">Todos os dias</option><option value="0">Só uma vez</option></select></div>
+        <select id="agAcao"><option value="cena">Executar uma cena</option><option value="site">Abrir um site</option><option value="shutdown">Desligar o PC</option><option value="screenoff">Apagar a tela</option><option value="lock">Bloquear o PC</option></select>
+        <select id="agAlvo"></select>
+        <button class="btn primario" id="agAdd"><svg class="i"><use href="#i-plus"/></svg>Agendar</button>
+      </div>
+    </section>
+
+    <!-- ARQUIVOS DO PC -->
+    <section class="aba" id="aba-arquivos">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Arquivos do PC</div>
+      <div class="linha"><button class="btn peq" id="arqPai"><svg class="i"><use href="#i-left"/></svg>Voltar</button><button class="btn peq" id="arqRaiz"><svg class="i"><use href="#i-folder"/></svg>Início</button></div>
+      <div class="caminho" id="arqCaminho"></div>
+      <div id="listaArq" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div class="suave" style="margin:4px 6px 0">Para mandar arquivos do celular para o PC, use Compartilhar &gt; Controle Universal em qualquer app.</div>
+      <div id="arqAcoes">
+        <div id="arqNome" style="font-weight:600;word-break:break-all"></div>
+        <div class="grade2">
+          <button class="btn primario" id="arqAbrir"><svg class="i"><use href="#i-monitor"/></svg>Abrir no PC</button>
+          <button class="btn" id="arqBaixar"><svg class="i"><use href="#i-download"/></svg>Baixar</button>
+        </div>
+        <button class="btn peq" id="arqFechar">Fechar</button>
+      </div>
+    </section>
+
+    <!-- SAIDA DE AUDIO -->
+    <section class="aba" id="aba-audio">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Saída de áudio</div>
+      <div class="suave" style="margin:0 6px">Escolha onde o som do PC sai: alto-falantes, TV (HDMI), fone…</div>
+      <div id="listaAudio" style="display:flex;flex-direction:column;gap:8px"></div>
+    </section>
+
+    <!-- APRESENTACAO -->
+    <section class="aba" id="aba-apres">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Apresentação</div>
+      <div id="cron">00:00</div>
+      <div class="linha"><button class="btn peq" id="cronIni"><svg class="i cheio"><use href="#i-play"/></svg>Iniciar</button><button class="btn peq" id="cronZera"><svg class="i"><use href="#i-refresh"/></svg>Zerar</button></div>
+      <div class="linha">
+        <button class="btn grande-btn" data-k="left"><svg class="i g"><use href="#i-left"/></svg>Anterior</button>
+        <button class="btn primario grande-btn" data-k="right">Próximo<svg class="i g"><use href="#i-right"/></svg></button>
+      </div>
+      <div class="grade3">
+        <button class="btn" data-k="f5">Iniciar (F5)</button>
+        <button class="btn" data-k="b">Tela preta</button>
+        <button class="btn" data-k="esc">Sair (Esc)</button>
+      </div>
+      <div id="padApres"><span style="pointer-events:none">Ponteiro: deslize para mover o mouse</span></div>
+    </section>
+    <!-- ENERGIA -->
+    <section class="aba" id="aba-energia">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Energia e timer</div>
+      <div class="grade2">
+        <button class="btn" data-pw="lock"><svg class="i"><use href="#i-lock"/></svg>Bloquear</button>
+        <button class="btn" data-pw="screenoff"><svg class="i"><use href="#i-monitoroff"/></svg>Apagar tela</button>
+        <button class="btn" data-pw="sleep" data-conf="1"><svg class="i"><use href="#i-moon"/></svg>Suspender</button>
+        <button class="btn" data-pw="restart" data-conf="1"><svg class="i"><use href="#i-refresh"/></svg>Reiniciar</button>
+      </div>
+      <button class="btn perigo" data-pw="shutdown" data-conf="1"><svg class="i"><use href="#i-power"/></svg>Desligar o PC</button>
+      <div class="suave" style="margin:6px 6px 0">Desligar o PC em…</div>
+      <div class="chips">
+        <button class="btn" data-min="15">15</button><button class="btn" data-min="30">30</button><button class="btn" data-min="60">60</button>
+        <button class="btn" data-min="90">90</button><button class="btn" data-min="120">120</button>
+      </div>
+      <div class="suave" style="margin:0 6px">Em minutos. O Windows avisa na tela do PC.</div>
+      <div id="tmrBox"><span>Desliga em <b id="tmrTxt">--:--</b></span><button class="btn peq" id="tmrCancela" style="min-height:42px"><svg class="i"><use href="#i-x"/></svg>Cancelar</button></div>
+      <button class="btn peq" data-pw="cancel" style="margin-top:2px">Cancelar qualquer desligamento</button>
+    </section>
+
+    <!-- AREA DE TRANSFERENCIA -->
+    <section class="aba" id="aba-clip">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Área de transferência</div>
+      <div class="suave" style="margin:0 6px">Do celular para o PC</div>
+      <textarea id="clipTexto" rows="4" placeholder="Escreva ou cole aqui o texto"></textarea>
+      <div class="grade2">
+        <button class="btn peq" id="clipColarCel"><svg class="i"><use href="#i-clip"/></svg>Colar do celular</button>
+        <button class="btn peq" id="clipLimpar"><svg class="i"><use href="#i-x"/></svg>Limpar</button>
+      </div>
+      <div class="grade2">
+        <button class="btn primario" id="clipParaPc"><svg class="i"><use href="#i-upload"/></svg>Copiar no PC</button>
+        <button class="btn" id="clipDigitar"><svg class="i"><use href="#i-keyboard"/></svg>Digitar no PC</button>
+      </div>
+      <div class="suave" style="margin:8px 6px 0">Do PC para o celular</div>
+      <textarea id="clipDoPc" rows="4" placeholder="O texto copiado no PC aparece aqui" readonly></textarea>
+      <div class="grade2">
+        <button class="btn" id="clipTrazer"><svg class="i"><use href="#i-download"/></svg>Trazer do PC</button>
+        <button class="btn" id="clipCopiarCel"><svg class="i"><use href="#i-copy"/></svg>Copiar no celular</button>
+      </div>
+    </section>
+
+    <!-- EDITOR DE BOTOES -->
+    <section class="aba" id="aba-editor">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Botões de sites</div>
+      <div id="edLista" style="display:flex;flex-direction:column;gap:10px"></div>
+      <button class="btn" id="edAdd"><svg class="i"><use href="#i-plus"/></svg>Adicionar site</button>
+      <button class="btn primario" id="edSalvar">Salvar no PC</button>
+    </section>
+
+    <!-- AJUSTES -->
+    <section class="aba" id="aba-ajustes">
+      <div class="subtopo"><button class="icb" data-ir="mais" aria-label="Voltar"><svg class="i"><use href="#i-left"/></svg></button>Ajustes</div>
+      <div class="ajuste"><div class="topo"><b>Sensibilidade do mouse</b><span id="vSens"></span></div>
+        <input type="range" id="cSens" min="0.5" max="2.5" step="0.1"></div>
+      <div class="ajuste"><div class="topo"><b>Velocidade da rolagem</b><span id="vRol"></span></div>
+        <input type="range" id="cRol" min="0.5" max="3" step="0.1"></div>
+      <button class="btn tgl" data-cfg="inverter"><span>Inverter sentido da rolagem</span><span class="pill"></span></button>
+      <button class="btn tgl" data-cfg="vibrar"><span>Vibração ao tocar</span><span class="pill"></span></button>
+      <button class="btn tgl" data-cfg="volFisico"><span>Botões de volume do celular</span><span class="pill"></span></button>
+      <button class="btn tgl" data-cfg="notif"><span>Controle na barra de notificações</span><span class="pill"></span></button>
+      <button class="btn tgl" data-cfg="gestos"><span>Gestos (pinça e 3 dedos)</span><span class="pill"></span></button>
+      <button class="btn tgl" data-cfg="abrirRecebidos"><span>Abrir no PC o que eu enviar</span><span class="pill"></span></button>
+      <button class="btn tgl" id="bTema"><span>Tema</span><span class="pill" id="temaPill">escuro</span></button>
+      <button class="btn" id="bGuia"><svg class="i"><use href="#i-star"/></svg>Rever o guia de uso</button>
+    </section>
+  </main>
+  <nav id="menu">
+    <button data-aba="mouse" class="ativo"><svg class="i"><use href="#i-mouse"/></svg>Mouse</button>
+    <button data-aba="remoto"><svg class="i"><use href="#i-gamepad"/></svg>Controle</button>
+    <button data-aba="midia"><svg class="i"><use href="#i-play"/></svg>Mídia</button>
+    <button data-aba="teclado"><svg class="i"><use href="#i-keyboard"/></svg>Teclado</button>
+    <button data-aba="sites"><svg class="i"><use href="#i-globe"/></svg>Sites</button>
+  </nav>
+</section>
+
+<!-- ESPELHO DA TELA -->
+<section class="tela" id="t-espelho">
+  <header>
+    <button class="icb" id="eFechar" aria-label="Fechar"><svg class="i"><use href="#i-left"/></svg></button>
+    <h1 id="eTitulo">Tela do PC</h1>
+  </header>
+  <div id="espCorpo"><img id="espImg" alt="Tela do PC"></div>
+  <div id="espBarra">
+    <button class="btn" id="eQual">Imagem média</button>
+    <button class="btn" id="eMon" style="display:none">Tela 1</button>
+    <button class="btn" id="eRolar">Rolar</button>
+    <button class="btn" id="eDir">Direito</button>
+    <button class="btn" id="eTec"><svg class="i"><use href="#i-keyboard"/></svg></button>
+  </div>
+</section>
+
+<!-- TECLADO COMPLETO -->
+<section class="tela" id="t-tecladoc">
+  <header>
+    <button class="icb" id="tcFechar" aria-label="Fechar"><svg class="i"><use href="#i-left"/></svg></button>
+    <h1>Teclado completo</h1>
+  </header>
+  <div id="tcTeclas"></div>
+</section>
+
+<!-- PRIMEIRA ABERTURA -->
+<section id="onb">
+  <div id="onbCorpo" class="passo-onb"></div>
+  <div id="onbPontos"></div>
+  <div class="linha">
+    <button class="btn" id="onbPular">Pular</button>
+    <button class="btn primario" id="onbProx">Próximo</button>
+  </div>
+</section>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var PORTA = 8765;
+  function ico(nome, extra) { return '<svg class="i ' + (extra || '') + '"><use href="#i-' + nome + '"/></svg>'; }
+  function b64(s) { return btoa(unescape(encodeURIComponent(s))); }
+
+  /* ---------- armazenamento ---------- */
+  var pcs = [];            // {id, nome, ip, porta, token, mac}
+  try { pcs = JSON.parse(localStorage.getItem('cu_pcs') || '[]'); } catch (e) { pcs = []; }
+  function salvar() { try { localStorage.setItem('cu_pcs', JSON.stringify(pcs)); } catch (e) {} }
+  function ultimo(id) {
+    if (id === undefined) { try { return localStorage.getItem('cu_ultimo'); } catch (e) { return null; } }
+    try { if (id) localStorage.setItem('cu_ultimo', id); else localStorage.removeItem('cu_ultimo'); } catch (e) {}
+  }
+  function achar(id) { for (var i = 0; i < pcs.length; i++) if (pcs[i].id === id) return pcs[i]; return null; }
+
+  /* ajustes do usuario */
+  var cfg = { sens: 1, rolagem: 1, inverter: false, vibrar: true, volFisico: true, notif: false, gestos: true, abrirRecebidos: false, tema: 'escuro' };
+  try { var guardado = JSON.parse(localStorage.getItem('cu_cfg') || '{}'); for (var kk in guardado) if (kk in cfg) cfg[kk] = guardado[kk]; } catch (e) {}
+  function salvarCfg() { try { localStorage.setItem('cu_cfg', JSON.stringify(cfg)); } catch (e) {} avisaNativo(); }
+
+  /* tema: escuro, claro ou automatico (segue o celular) */
+  function aplicarTema() {
+    var claro = cfg.tema === 'claro' || (cfg.tema === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches);
+    document.documentElement.setAttribute('data-tema', claro ? 'claro' : 'escuro');
+    try { if (window.Android && Android.tema) Android.tema(!!claro); } catch (e) {}
+    var p = document.getElementById('temaPill'); if (p) p.textContent = cfg.tema === 'auto' ? 'automático' : cfg.tema;
+  }
+  aplicarTema();
+  try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', function () { if (cfg.tema === 'auto') aplicarTema(); }); } catch (e) {}
+  function avisaNativo() {
+    try {
+      if (!window.Android) return;
+      if (Android.emControle) Android.emControle(tela.atual === 'controle' && cfg.volFisico);
+      if (Android.notificacao) {
+        var liga = !!(cfg.notif && tela.atual === 'controle' && atual && atual.token);
+        Android.notificacao(liga, liga ? atual.nome : '', liga ? atual.ip : '', liga ? atual.porta : 0, liga ? atual.token : '');
+      }
+    } catch (e) {}
+  }
+  window.cuAtualizarNotif = avisaNativo;
+
+  /* ---------- util ---------- */
+  function toast(t) {
+    var el = $('#toast'); el.textContent = t; el.classList.add('on');
+    clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove('on'); }, 1900);
+  }
+  function vibra(ms) { if (!cfg.vibrar) return; try { if (window.Android && Android.vibra) Android.vibra(ms || 8); else navigator.vibrate && navigator.vibrate(ms || 8); } catch (e) {} }
+  function tela(nome) {
+    $$('.tela').forEach(function (t) { t.classList.toggle('ativa', t.id === 't-' + nome); });
+    tela.atual = nome; avisaNativo();
+  }
+  function fetchT(url, opts, ms) {
+    var c = new AbortController(); var t = setTimeout(function () { c.abort(); }, ms || 1500);
+    opts = opts || {}; opts.signal = c.signal;
+    return fetch(url, opts).then(function (r) { clearTimeout(t); return r; }, function (e) { clearTimeout(t); throw e; });
+  }
+  function base(pc) { return 'http://' + pc.ip + ':' + pc.porta; }
+  function sondar(ip, porta, ms) {
+    return fetchT('http://' + ip + ':' + porta + '/api/info', {}, ms || 900)
+      .then(function (r) { return r.json(); })
+      .then(function (d) { return d && d.app === 'controle-universal' ? d : null; })
+      .catch(function () { return null; });
+  }
+  function ipsLocais() { try { return JSON.parse(window.Android.ips()); } catch (e) { return []; } }
+
+  /* botao de duplo toque (confirmacao) */
+  function duploToque(btn, fn, rotulo) {
+    if (btn._c) {
+      clearTimeout(btn._c); btn._c = null; btn.classList.remove('confirmar');
+      if (btn._orig !== undefined) btn.innerHTML = btn._orig;
+      fn(); return;
+    }
+    btn._orig = btn.innerHTML; btn.classList.add('confirmar');
+    if (rotulo !== false) btn.innerHTML = '<span>Toque de novo para confirmar</span>';
+    btn._c = setTimeout(function () { btn._c = null; btn.classList.remove('confirmar'); btn.innerHTML = btn._orig; }, 3000);
+  }
+
+  /* ---------- procura na rede ---------- */
+  var achados = {};
+  var buscando = false;
+
+  function varrer() {
+    if (buscando) return Promise.resolve();
+    buscando = true;
+    var prefixos = {};
+    ipsLocais().forEach(function (ip) { prefixos[ip.split('.').slice(0, 3).join('.')] = 1; });
+    pcs.forEach(function (p) { prefixos[p.ip.split('.').slice(0, 3).join('.')] = 1; });
+    var alvos = [];
+    Object.keys(prefixos).forEach(function (p) { for (var i = 1; i < 255; i++) alvos.push(p + '.' + i); });
+    pcs.forEach(function (p) { alvos.unshift(p.ip); });
+    $('#statusBusca').textContent = 'Procurando computadores…';
+    function trabalhador() {
+      var ip = alvos.shift(); if (!ip) return Promise.resolve();
+      return sondar(ip, PORTA, 800).then(function (d) {
+        if (d) {
+          achados[d.id] = { id: d.id, nome: d.nome, ip: ip, porta: d.porta || PORTA, mac: d.mac || '' };
+          var p = achar(d.id);
+          if (p && (p.ip !== ip || p.nome !== d.nome || (d.mac && p.mac !== d.mac))) { p.ip = ip; p.nome = d.nome; if (d.mac) p.mac = d.mac; salvar(); }
+          desenharLista();
+        }
+        return trabalhador();
+      });
+    }
+    var pool = []; for (var i = 0; i < 40; i++) pool.push(trabalhador());
+    return Promise.all(pool).then(function () {
+      buscando = false;
+      var n = Object.keys(achados).length;
+      $('#statusBusca').textContent = n ? 'Toque no computador que quer controlar.' : 'Nenhum computador encontrado nesta rede.';
+      desenharLista();
+    });
+  }
+
+  function desenharLista() {
+    var lista = $('#listaPcs'); lista.innerHTML = '';
+    var todos = pcs.slice();
+    Object.keys(achados).forEach(function (id) { if (!achar(id)) todos.push(achados[id]); });
+    todos.forEach(function (p) {
+      var online = !!achados[p.id];
+      var b = document.createElement('div'); b.className = 'pc' + (online ? ' on' : ''); b.setAttribute('role', 'button');
+      b.innerHTML = '<span class="bola">' + ico('laptop') + '</span><span class="info"><b></b><small></small></span><span class="pill"></span>';
+      b.querySelector('b').textContent = p.nome;
+      b.querySelector('small').textContent = p.ip + (p.token ? ' · pareado' : '');
+      var st = b.querySelector('.pill'); st.textContent = online ? 'disponível' : 'fora da rede'; st.classList.toggle('on', online);
+      if (!online && p.mac) {
+        var lg = document.createElement('button'); lg.className = 'ligar'; lg.textContent = 'Ligar';
+        lg.onclick = function (ev) {
+          ev.stopPropagation();
+          try { Android.ligarPc(p.mac); } catch (e) {}
+          toast('Sinal enviado. Aguarde cerca de 30 s…');
+          setTimeout(function () { achados = {}; varrer(); }, 25000);
+        };
+        b.replaceChild(lg, st);
+      }
+      b.onclick = function () { entrar(p.id, online ? achados[p.id] : p); };
+      lista.appendChild(b);
+    });
+  }
+
+  $('#bBuscar').onclick = function () { achados = {}; desenharLista(); varrer(); };
+  $('#bAdd').onclick = function () {
+    var v = $('#ipManual').value.trim(); if (!v) return;
+    var partes = v.split(':'); var ip = partes[0], porta = parseInt(partes[1] || PORTA, 10);
+    sondar(ip, porta, 2000).then(function (d) {
+      if (!d) { toast('Não encontrei o programa nesse endereço.'); return; }
+      achados[d.id] = { id: d.id, nome: d.nome, ip: ip, porta: porta, mac: d.mac || '' };
+      $('#ipManual').value = ''; desenharLista(); toast('Encontrado: ' + d.nome);
+    });
+  };
+
+  /* ---------- entrar num PC ---------- */
+  var atual = null, ws = null, tentativas = 0, vivo = false;
+
+  function entrar(id, local) {
+    var pc = achar(id);
+    if (!pc) { pc = { id: local.id, nome: local.nome, ip: local.ip, porta: local.porta, token: null, mac: local.mac || '' }; }
+    else if (local && local.ip) { pc.ip = local.ip; pc.porta = local.porta || pc.porta; pc.nome = local.nome || pc.nome; if (local.mac) pc.mac = local.mac; }
+    atual = pc;
+    if (!pc.token) { mostrarParear(); return; }
+    verificar();
+  }
+
+  function verificar() {
+    fetchT(base(atual) + '/api/sites', { headers: { 'X-Token': atual.token } }, 2500).then(function (r) {
+      if (r.status === 401) { atual.token = null; salvar(); mostrarParear(); return null; }
+      return r.json();
+    }).then(function (d) {
+      if (!d) return;
+      salvar(); ultimo(atual.id);
+      mostrarControle(d);
+    }).catch(function () {
+      toast('Procurando ' + atual.nome + '…');
+      achados = {};
+      varrer().then(function () {
+        var f = achados[atual.id];
+        if (f) { atual.ip = f.ip; salvar(); verificar(); }
+        else { toast(atual.nome + ' não está na rede.'); tela('lista'); }
+      });
+    });
+  }
+
+  function mostrarParear() {
+    $('#pNome').textContent = atual.nome; $('#codigo').value = ''; $('#erroParear').textContent = '';
+    tela('parear');
+  }
+  $('#pVoltar').onclick = function () { tela('lista'); };
+
+  $('#btnParear').onclick = function () {
+    var codigo = $('#codigo').value.trim(); $('#erroParear').textContent = '';
+    fetchT(base(atual) + '/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo: codigo, nome: 'App Android' }) }, 4000)
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (!x.ok) { $('#erroParear').textContent = x.d.erro || 'Não deu certo.'; return; }
+        atual.token = x.d.token;
+        if (!achar(atual.id)) pcs.push(atual);
+        salvar(); verificar();
+      }).catch(function () { $('#erroParear').textContent = 'Sem conexão com o computador.'; });
+  };
+  $('#codigo').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#btnParear').click(); });
+
+  /* ---------- tela de controle ---------- */
+  var sitesAtuais = [];
+  function mostrarControle(d) {
+    $('#cNome').textContent = atual.nome;
+    $('#mNome').textContent = atual.nome; $('#mIp').textContent = atual.ip + ':' + atual.porta;
+    montarSites(d);
+    irParaAba('mouse');
+    tela('controle');
+    abrirWs();
+    carregarCenas(true);
+  }
+
+  function enviar(s) { if (ws && ws.readyState === 1) { ws.send(s); return true; } return false; }
+
+  function abrirWs() {
+    fecharWs(); vivo = true;
+    var meu = atual;
+    var w = new WebSocket('ws://' + meu.ip + ':' + meu.porta + '/ws?t=' + encodeURIComponent(meu.token));
+    ws = w;
+    w.onopen = function () { $('#ponto').classList.add('on'); tentativas = 0; faixa(false); liberarFila(); pedirDados(true); };
+    w.onmessage = function (e) { recebido(String(e.data)); };
+    w.onclose = function () {
+      $('#ponto').classList.remove('on');
+      if (vivo && ws === w) faixa(true);
+      if (!vivo || ws !== w || (tela.atual !== 'controle' && tela.atual !== 'espelho')) return;
+      tentativas++;
+      if (tentativas >= 3) { tentativas = 0; verificar(); return; }
+      setTimeout(function () { if (vivo && (tela.atual === 'controle' || tela.atual === 'espelho') && ws === w) abrirWs(); }, 1000);
+    };
+    w.onerror = function () { try { w.close(); } catch (e) {} };
+  }
+  function faixa(mostrar) { $('#faixa').classList.toggle('on', !!mostrar); }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && (tela.atual === 'controle') && (!ws || ws.readyState > 1)) { tentativas = 0; verificar(); }
+  });
+  function fecharWs() { faixa(false); vivo = false; if (ws) { var w = ws; ws = null; try { w.onclose = null; w.close(); } catch (e) {} } $('#ponto').classList.remove('on'); }
+  setInterval(function () { enviar('p'); }, 20000);
+
+  function sairDoControle() { pararEspelho(); fecharWs(); ultimo(null); tela('lista'); desenharLista(); varrer(); }
+  $('#cVoltar').onclick = sairDoControle;
+  $('#bLista').onclick = sairDoControle;
+  $('#bEsquecer').onclick = function () {
+    duploToque($('#bEsquecer'), function () {
+      pcs = pcs.filter(function (p) { return p.id !== atual.id; }); salvar(); sairDoControle();
+    });
+  };
+
+  /* ---------- abas e sub-telas ---------- */
+  var SUBS = ['janelas', 'energia', 'clip', 'editor', 'ajustes', 'cenas', 'cenaEd', 'agenda', 'arquivos', 'audio', 'apres'];
+  function irParaAba(nome) {
+    $$('nav button').forEach(function (x) { x.classList.toggle('ativo', x.dataset.aba === nome); });
+    $$('.aba').forEach(function (a) { a.classList.toggle('ativa', a.id === 'aba-' + nome); });
+    irParaAba.atual = nome;
+    if (nome === 'janelas') enviar('jl');
+    if (nome === 'energia') enviar('pq');
+    if (nome === 'editor') montarEditor();
+    if (nome === 'ajustes') mostrarAjustes();
+    if (nome === 'cenas') carregarCenas(false);
+    if (nome === 'agenda') carregarAgenda();
+    if (nome === 'audio') enviar('al');
+    if (nome === 'arquivos' && !arq.c) abrirPasta('@');
+    if (nome === 'apres') { /* o ponteiro usa o mesmo touchpad */ }
+    if (nome === 'remoto' || nome === 'midia') pedirDados(true);
+    var m = document.getElementById('t-controle').querySelector('main'); if (m) m.scrollTop = 0;
+  }
+  $$('nav button').forEach(function (b) { b.onclick = function () { irParaAba(b.dataset.aba); }; });
+  $('#cMais').onclick = function () { irParaAba(irParaAba.atual === 'mais' ? 'mouse' : 'mais'); };
+  $$('[data-ir]').forEach(function (b) {
+    b.onclick = function () { var d = b.dataset.ir; if (d === 'espelho') abrirEspelho(); else irParaAba(d); };
+  });
+  $('#cTela').onclick = function () { abrirEspelho(); };
+
+  /* teclas: toque simples; volume repete enquanto o dedo fica apertado */
+  $$('[data-k]').forEach(function (b) {
+    var rep = null;
+    function parar() { clearInterval(rep); rep = null; b.classList.remove('press'); }
+    b.addEventListener('touchstart', function (e) {
+      e.preventDefault(); b.classList.add('press');
+      enviar('k ' + b.dataset.k); vibra();
+      if (b.dataset.k === 'volup' || b.dataset.k === 'voldown') setTimeout(function () { enviar('vg'); }, 250);
+      if (b.dataset.rep) { b._t0 = setTimeout(function () { rep = setInterval(function () { enviar('k ' + b.dataset.k); }, 120); }, 350); }
+    }, { passive: false });
+    ['touchend', 'touchcancel'].forEach(function (ev) { b.addEventListener(ev, function () { clearTimeout(b._t0); parar(); if (b.dataset.rep) setTimeout(function () { enviar('vg'); }, 300); }); });
+    b.addEventListener('click', function (e) { if (e.detail === 0) enviar('k ' + b.dataset.k); });
+  });
+  $('#bEnviar').onclick = function () {
+    var t = $('#texto').value; if (!t) return;
+    enviar('t ' + t); $('#texto').value = ''; vibra();
+  };
+
+  /* ---------- sites ---------- */
+  function montarSites(d) {
+    sitesAtuais = d.sites || [];
+    var g = $('#grade-sites'); g.innerHTML = '';
+    sitesAtuais.forEach(function (s) {
+      var b = document.createElement('button'); b.className = 'site';
+      b.innerHTML = '<span class="ini"></span><span class="t"></span>';
+      b.querySelector('.ini').textContent = (s.titulo || '?').charAt(0).toUpperCase();
+      b.querySelector('.ini').style.background = s.cor || '#3b4252';
+      b.querySelector('.t').textContent = s.titulo;
+      var seg = null, longo = false;
+      b.addEventListener('touchstart', function () { longo = false; seg = setTimeout(function () { longo = true; vibra(20); atalhoSite(s); }, 650); }, { passive: true });
+      ['touchend', 'touchmove', 'touchcancel'].forEach(function (ev) { b.addEventListener(ev, function () { clearTimeout(seg); }, { passive: true }); });
+      b.onclick = function () { if (longo) { longo = false; return; } enviar('o ' + s.id); toast('Abrindo ' + s.titulo + '…'); vibra(); };
+      g.appendChild(b);
+    });
+    $('#infoNav').textContent = d.navegador ? 'Navegador no PC: ' + d.navegador : 'Nenhum navegador encontrado no PC.';
+  }
+  function atalhoSite(s) {
+    try {
+      var ok = window.Android && Android.fixarAtalho && Android.fixarAtalho(atual.id, s.id, s.titulo, s.cor || '#e8590c');
+      toast(ok ? 'Confirme para adicionar o atalho' : 'Seu celular não permite criar este atalho');
+    } catch (e) { toast('Não consegui criar o atalho'); }
+  }
+  $('#bNavegador').onclick = function () { enviar('n'); toast('Abrindo navegador…'); };
+  $('#bAbrirUrl').onclick = function () {
+    var u = $('#endereco').value.trim(); if (!u) return;
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    enviar('u ' + u); toast('Abrindo…');
+  };
+
+  /* ---------- mensagens do PC ---------- */
+  var volArrasto = false, tmrFim = 0;
+  function recebido(msg) {
+    var i = msg.indexOf(' '); var tipo = i < 0 ? msg : msg.slice(0, i), dados = null;
+    try { dados = i < 0 ? null : JSON.parse(msg.slice(i + 1)); } catch (e) { return; }
+    if (tipo === 'vol') {
+      if (!volArrasto) $$('.volrange').forEach(function (r) { r.value = Math.round(dados.v * 100); });
+      $$('.voltxt').forEach(function (t) { t.textContent = dados.m ? 'mudo' : Math.round(dados.v * 100) + '%'; });
+    } else if (tipo === 'jan') desenharJanelas(dados);
+    else if (tipo === 'tmr') {
+      tmrFim = dados.s > 0 ? Date.now() + dados.s * 1000 : 0; mostrarTimer();
+    } else if (tipo === 'clip') { $('#clipDoPc').value = dados.t || ''; toast(dados.t ? 'Texto trazido do PC' : 'A área de transferência do PC está vazia'); }
+    else if (tipo === 'now') mostrarAgora(dados);
+    else if (tipo === 'aud') { audioLista = dados || []; desenharAudio(); }
+    else if (tipo === 'bri') mostrarBrilho(dados.v);
+    else if (tipo === 'mon') { esp.monitores = dados || []; atualizarBotaoMonitor(); }
+  }
+
+  /* consulta periodica do que esta visivel (volume, tocando agora, janelas, timer) */
+  var ciclo = 0;
+  function pedirDados(agora) {
+    if (tela.atual !== 'controle' || !ws || ws.readyState !== 1) return;
+    var a = irParaAba.atual;
+    if (a === 'remoto' || a === 'midia') enviar('vg');
+    if (a === 'remoto' && (agora || ciclo % 3 === 0)) { enviar('al'); if (briSuportado !== false) enviar('bg'); }
+    if (a === 'audio' && ciclo % 3 === 0) enviar('al');
+    if (a === 'midia' && (agora || ciclo % 2 === 0)) enviar('ag');
+    if (a === 'janelas') enviar('jl');
+    if (a === 'energia' && ciclo % 3 === 0) enviar('pq');
+  }
+  setInterval(function () { ciclo++; pedirDados(false); }, 2500);
+
+  /* volume real do PC */
+  $$('.volrange').forEach(function (r) {
+    var ult = 0;
+    r.addEventListener('touchstart', function () { volArrasto = true; }, { passive: true });
+    ['touchend', 'touchcancel'].forEach(function (ev) { r.addEventListener(ev, function () { volArrasto = false; setTimeout(function () { enviar('vg'); }, 200); }, { passive: true }); });
+    r.addEventListener('input', function () {
+      var v = parseInt(r.value, 10);
+      $$('.volrange').forEach(function (o) { if (o !== r) o.value = v; });
+      $$('.voltxt').forEach(function (t) { t.textContent = v + '%'; });
+      var agora = Date.now(); if (agora - ult < 60) return; ult = agora;
+      enviar('vs ' + (v / 100).toFixed(2));
+    });
+    r.addEventListener('change', function () { enviar('vs ' + (parseInt(r.value, 10) / 100).toFixed(2)); });
+  });
+
+  /* tocando agora */
+  function mostrarAgora(d) {
+    var tem = d && d.titulo;
+    $('#agTitulo').textContent = tem ? d.titulo : 'Nada tocando agora';
+    $('#agArt').textContent = tem ? ((d.artista ? d.artista + ' · ' : '') + (d.app || '').replace(/\.exe$/i, '')) : '';
+    var estado = d && d.estado; $('#agSt').textContent = tem ? (estado === 4 ? 'TOCANDO' : estado === 5 ? 'PAUSADO' : '') : '';
+    var barra = $('#agBarra');
+    if (tem && d.fim > 0) { barra.style.display = 'block'; $('#agProg').style.width = Math.min(100, Math.round(d.pos * 100 / d.fim)) + '%'; }
+    else barra.style.display = 'none';
+  }
+
+  /* ---------- janelas abertas ---------- */
+  function desenharJanelas(lista) {
+    var box = $('#listaJan'); box.innerHTML = '';
+    $('#janVazio').textContent = lista.length ? 'Toque numa janela para trazê-la para frente.' : 'Nenhuma janela encontrada.';
+    lista.forEach(function (j) {
+      var d = document.createElement('div'); d.className = 'jan' + (j.a ? ' ativa' : '');
+      d.innerHTML = '<button class="corpo"><b></b><small></small></button>'
+        + '<button class="icb" data-a="m" aria-label="Minimizar">' + ico('minus') + '</button>'
+        + '<button class="icb" data-a="c" aria-label="Fechar">' + ico('x') + '</button>';
+      d.querySelector('b').textContent = j.t;
+      d.querySelector('small').textContent = j.p + (j.m ? ' · minimizada' : j.a ? ' · em uso' : '');
+      d.querySelector('.corpo').onclick = function () { enviar('jf ' + j.h); vibra(); setTimeout(function () { enviar('jl'); }, 600); };
+      d.querySelector('[data-a=m]').onclick = function () { enviar('jm ' + j.h); setTimeout(function () { enviar('jl'); }, 500); };
+      var bc = d.querySelector('[data-a=c]');
+      bc.onclick = function () { duploToque(bc, function () { enviar('jc ' + j.h); setTimeout(function () { enviar('jl'); }, 700); }, false); };
+      box.appendChild(d);
+    });
+  }
+
+  /* ---------- energia ---------- */
+  $$('[data-pw]').forEach(function (b) {
+    b.onclick = function () {
+      var rodar = function () { enviar('pw ' + b.dataset.pw); vibra(20); toast(b.dataset.pw === 'cancel' ? 'Desligamento cancelado' : 'Comando enviado'); setTimeout(function () { enviar('pq'); }, 500); };
+      if (b.dataset.conf) duploToque(b, rodar); else rodar();
+    };
+  });
+  $$('[data-min]').forEach(function (b) {
+    b.onclick = function () { enviar('pt ' + b.dataset.min); vibra(); toast('PC desliga em ' + b.dataset.min + ' min'); setTimeout(function () { enviar('pq'); }, 600); };
+  });
+  $('#tmrCancela').onclick = function () { enviar('pt 0'); tmrFim = 0; mostrarTimer(); toast('Timer cancelado'); };
+  function mostrarTimer() {
+    var box = $('#tmrBox'); var s = Math.max(0, Math.round((tmrFim - Date.now()) / 1000));
+    box.classList.toggle('on', s > 0);
+    if (s > 0) { var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60; $('#tmrTxt').textContent = (h ? h + ':' : '') + (h ? ('0' + m).slice(-2) : m) + ':' + ('0' + ss).slice(-2); }
+  }
+  setInterval(function () { if (tmrFim) mostrarTimer(); }, 1000);
+
+  /* ---------- area de transferencia ---------- */
+  $('#clipParaPc').onclick = function () { var t = $('#clipTexto').value; if (!t) { toast('Escreva algo primeiro'); return; } enviar('cs ' + b64(t)); toast('Copiado no PC. Use Ctrl+V lá.'); vibra(); };
+  $('#clipDigitar').onclick = function () { var t = $('#clipTexto').value; if (!t) { toast('Escreva algo primeiro'); return; } enviar('t ' + t); toast('Digitando no PC…'); vibra(); };
+  $('#clipColarCel').onclick = function () { try { $('#clipTexto').value = Android.colar() || ''; } catch (e) {} if (!$('#clipTexto').value) toast('A área de transferência do celular está vazia'); };
+  $('#clipLimpar').onclick = function () { $('#clipTexto').value = ''; };
+  $('#clipTrazer').onclick = function () { enviar('cg'); };
+  $('#clipCopiarCel').onclick = function () { var t = $('#clipDoPc').value; if (!t) { toast('Nada para copiar'); return; } try { Android.copiar(t); toast('Copiado no celular'); } catch (e) {} };
+
+  /* ---------- editor de botoes ---------- */
+  var edDados = [];
+  function montarEditor() { edDados = sitesAtuais.map(function (s) { return { titulo: s.titulo, url: s.url, cor: s.cor || '#3b4252' }; }); desenharEditor(); }
+  function desenharEditor() {
+    var box = $('#edLista'); box.innerHTML = '';
+    edDados.forEach(function (s, i) {
+      var d = document.createElement('div'); d.className = 'ed';
+      d.innerHTML = '<div class="l1"><input type="color"><input class="t" placeholder="Nome" maxlength="30">'
+        + '<button class="icb" data-a="u" aria-label="Subir">' + ico('up') + '</button>'
+        + '<button class="icb" data-a="d" aria-label="Descer">' + ico('down') + '</button>'
+        + '<button class="icb" data-a="x" aria-label="Apagar">' + ico('trash') + '</button></div>'
+        + '<input class="u" placeholder="https://..." inputmode="url" autocapitalize="off">';
+      var cor = d.querySelector('input[type=color]'), t = d.querySelector('.t'), u = d.querySelector('.u');
+      cor.value = /^#[0-9a-f]{6}$/i.test(s.cor) ? s.cor : '#3b4252'; t.value = s.titulo; u.value = s.url;
+      cor.oninput = function () { s.cor = cor.value; }; t.oninput = function () { s.titulo = t.value; }; u.oninput = function () { s.url = u.value; };
+      d.querySelector('[data-a=u]').onclick = function () { if (i > 0) { edDados.splice(i - 1, 0, edDados.splice(i, 1)[0]); desenharEditor(); } };
+      d.querySelector('[data-a=d]').onclick = function () { if (i < edDados.length - 1) { edDados.splice(i + 1, 0, edDados.splice(i, 1)[0]); desenharEditor(); } };
+      var bx = d.querySelector('[data-a=x]');
+      bx.onclick = function () { duploToque(bx, function () { edDados.splice(i, 1); desenharEditor(); }, false); };
+      box.appendChild(d);
+    });
+  }
+  $('#edAdd').onclick = function () { edDados.push({ titulo: '', url: 'https://', cor: '#e8590c' }); desenharEditor(); var m = $('#t-controle main'); m.scrollTop = m.scrollHeight; };
+  $('#edSalvar').onclick = function () {
+    var lista = edDados.filter(function (s) { return s.titulo.trim() && /^https?:\/\/\S+/i.test(s.url.trim()); })
+      .map(function (s) { return { titulo: s.titulo.trim(), url: s.url.trim(), cor: s.cor }; });
+    fetchT(base(atual) + '/api/sites', { method: 'POST', headers: { 'X-Token': atual.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ sites: lista }) }, 4000)
+      .then(function (r) { if (!r.ok) throw 0; return fetchT(base(atual) + '/api/sites', { headers: { 'X-Token': atual.token } }, 3000); })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { montarSites(d); montarEditor(); toast('Botões salvos no PC'); vibra(20); })
+      .catch(function () { toast('Não consegui salvar. Confira os endereços.'); });
+  };
+
+  /* ---------- espelho da tela ---------- */
+  var esp = { ativo: false, qual: 1, url: null, mon: 0, monitores: [], zoom: 1, tx: 0, ty: 0, rolar: false };
+  var QUALS = [{ r: 'baixa', w: 480, q: 35 }, { r: 'média', w: 720, q: 45 }, { r: 'alta', w: 1080, q: 60 }];
+  function aplicarZoom() { $('#espImg').style.transform = 'translate(' + esp.tx + 'px,' + esp.ty + 'px) scale(' + esp.zoom + ')'; }
+  function abrirEspelho() {
+    if (!atual) return;
+    esp.ativo = true; esp.zoom = 1; esp.tx = 0; esp.ty = 0; aplicarZoom();
+    $('#eTitulo').textContent = atual.nome;
+    $('#eQual').textContent = 'Imagem ' + QUALS[esp.qual].r;
+    enviar('ml');
+    tela('espelho'); proximoQuadro();
+  }
+  function atualizarBotaoMonitor() {
+    var b = $('#eMon'); b.style.display = esp.monitores.length > 1 ? '' : 'none';
+    b.textContent = 'Tela ' + (esp.mon + 1);
+  }
+  function pararEspelho() { esp.ativo = false; if (esp.url) { URL.revokeObjectURL(esp.url); esp.url = null; } }
+  function proximoQuadro() {
+    if (!esp.ativo || !atual) return;
+    var t0 = Date.now(), q = esp.zoom > 1.5 ? QUALS[2] : QUALS[esp.qual];
+    fetchT(base(atual) + '/api/tela?w=' + q.w + '&q=' + q.q + '&m=' + esp.mon + '&t=' + encodeURIComponent(atual.token) + '&n=' + t0, {}, 4000)
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (b) {
+        var nova = URL.createObjectURL(b), velha = esp.url; esp.url = nova;
+        $('#espImg').onload = function () { if (velha) URL.revokeObjectURL(velha); };
+        $('#espImg').src = nova;
+      })
+      .catch(function () {})
+      .then(function () { setTimeout(proximoQuadro, Math.max(30, 140 - (Date.now() - t0))); });
+  }
+  $('#eFechar').onclick = function () { pararEspelho(); tela('controle'); };
+  $('#eQual').onclick = function () { esp.qual = (esp.qual + 1) % QUALS.length; $('#eQual').textContent = 'Imagem ' + QUALS[esp.qual].r; };
+  $('#eMon').onclick = function () { esp.mon = (esp.mon + 1) % Math.max(1, esp.monitores.length); atualizarBotaoMonitor(); esp.zoom = 1; esp.tx = 0; esp.ty = 0; aplicarZoom(); };
+  var proxDireito = false;
+  $('#eDir').onclick = function () { proxDireito = !proxDireito; $('#eDir').classList.toggle('liga', proxDireito); toast(proxDireito ? 'Próximo toque = clique direito' : 'Clique direito desligado'); };
+  $('#eRolar').onclick = function () { esp.rolar = !esp.rolar; $('#eRolar').classList.toggle('liga', esp.rolar); toast(esp.rolar ? 'Arraste com um dedo para rolar' : 'Rolagem desligada'); };
+  $('#eTec').onclick = function () { pararEspelho(); tela('controle'); irParaAba('teclado'); };
+  (function () {
+    var corpo = $('#espCorpo'), img = $('#espImg'), ini = null, moveu = false, t0 = 0, longoT = null, longo = false, g = null, ultY = 0;
+    function pos(t) {
+      var r = img.getBoundingClientRect();
+      var nx = Math.max(0, Math.min(1, (t.clientX - r.left) / r.width)), ny = Math.max(0, Math.min(1, (t.clientY - r.top) / r.height));
+      return Math.round(nx * 10000) + ' ' + Math.round(ny * 10000);
+    }
+    function abs(t) { return 'am ' + esp.mon + ' ' + pos(t); }
+    function dist2(ts) { var dx = ts[0].clientX - ts[1].clientX, dy = ts[0].clientY - ts[1].clientY; return Math.sqrt(dx * dx + dy * dy); }
+    corpo.addEventListener('touchstart', function (e) {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        clearTimeout(longoT); ini = null;
+        var c = centro(e.touches); g = { d0: dist2(e.touches), s0: esp.zoom, tx0: esp.tx, ty0: esp.ty, c0: c };
+        return;
+      }
+      if (e.touches.length !== 1) { ini = null; return; }
+      g = null;
+      ini = { x: e.touches[0].clientX, y: e.touches[0].clientY }; moveu = false; longo = false; t0 = Date.now(); ultY = ini.y;
+      if (esp.rolar) enviar(abs(e.touches[0]));
+      else longoT = setTimeout(function () { if (ini && !moveu) { longo = true; enviar(abs(e.touches[0] || ini)); enviar('b r c'); vibra(25); } }, 550);
+    }, { passive: false });
+    corpo.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      if (e.touches.length === 2 && g) {          // pinca = zoom, dois dedos = mover a imagem ampliada
+        var c = centro(e.touches);
+        esp.zoom = Math.max(1, Math.min(5, g.s0 * dist2(e.touches) / g.d0));
+        esp.tx = g.tx0 + (c.x - g.c0.x); esp.ty = g.ty0 + (c.y - g.c0.y);
+        if (esp.zoom <= 1.02) { esp.zoom = 1; esp.tx = 0; esp.ty = 0; }
+        aplicarZoom(); return;
+      }
+      if (!ini || e.touches.length !== 1) return;
+      var t = e.touches[0];
+      if (esp.rolar) { var dy = t.clientY - ultY; ultY = t.clientY; moveu = true; rolar(dy * 3); return; }
+      if (Math.abs(t.clientX - ini.x) + Math.abs(t.clientY - ini.y) > 14) { moveu = true; clearTimeout(longoT); }
+      if (moveu) enviar(abs(t));
+    }, { passive: false });
+    corpo.addEventListener('touchend', function (e) {
+      e.preventDefault(); clearTimeout(longoT);
+      if (e.touches.length === 0) g = null;
+      if (ini && !moveu && !longo && !esp.rolar && Date.now() - t0 < 500) {
+        var t = e.changedTouches[0]; enviar(abs(t)); enviar(proxDireito ? 'b r c' : 'b l c'); vibra();
+        if (proxDireito) { proxDireito = false; $('#eDir').classList.remove('liga'); }
+      }
+      if (e.touches.length === 0) ini = null;
+    }, { passive: false });
+  })();
+
+  /* ---------- touchpad ---------- */
+  var pad = $('#pad');
+  var ultimoPt = null, pendX = 0, pendY = 0, pendRoda = 0, pendZoom = 0, ultDist = null, ini3 = null, fim3 = null;
+  var inicioToque = 0, moveuTotal = 0, maxDedos = 0, ultimoTap = 0, arrastando = false, travaArrasto = false;
+
+  function centro(ts) {
+    var x = 0, y = 0; for (var i = 0; i < ts.length; i++) { x += ts[i].clientX; y += ts[i].clientY; }
+    return { x: x / ts.length, y: y / ts.length };
+  }
+  function distancia(ts) { var dx = ts[0].clientX - ts[1].clientX, dy = ts[0].clientY - ts[1].clientY; return Math.sqrt(dx * dx + dy * dy); }
+  function onda(x, y, el) {
+    el = el || pad;
+    var r = el.getBoundingClientRect(), d = document.createElement('div');
+    d.className = 'onda'; d.style.left = (x - r.left) + 'px'; d.style.top = (y - r.top) + 'px';
+    el.appendChild(d); setTimeout(function () { d.remove(); }, 480);
+  }
+  function setArrasto(on) {
+    if (on === arrastando) return;
+    arrastando = on; pad.classList.toggle('arrastando', on);
+    enviar('b l ' + (on ? 'd' : 'u'));
+  }
+  function rolar(delta) { pendRoda += delta * cfg.rolagem * (cfg.inverter ? -1 : 1); }
+
+  [pad, $('#padApres')].forEach(function (el) {
+  el.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    var agora = Date.now();
+    if (e.touches.length === 1) {
+      inicioToque = agora; moveuTotal = 0; maxDedos = 1; ini3 = null; fim3 = null;
+      if (agora - ultimoTap < 300 && !travaArrasto) setArrasto(true);
+      onda(e.touches[0].clientX, e.touches[0].clientY, el);
+    } else { maxDedos = Math.max(maxDedos, e.touches.length); }
+    if (e.touches.length === 2) ultDist = distancia(e.touches);
+    if (e.touches.length >= 3 && !ini3) { ini3 = centro(e.touches); fim3 = ini3; }
+    ultimoPt = centro(e.touches);
+  }, { passive: false });
+  el.addEventListener('touchmove', function (e) {
+    e.preventDefault();
+    var c = centro(e.touches);
+    if (!ultimoPt) { ultimoPt = c; return; }
+    var dx = c.x - ultimoPt.x, dy = c.y - ultimoPt.y; ultimoPt = c;
+    moveuTotal += Math.abs(dx) + Math.abs(dy);
+    if (e.touches.length >= 3) { fim3 = c; return; }
+    if (e.touches.length === 2) {
+      var dist = distancia(e.touches), dd = ultDist === null ? 0 : dist - ultDist; ultDist = dist;
+      if (cfg.gestos && Math.abs(dd) > (Math.abs(dy) + Math.abs(dx)) * 1.3 && Math.abs(dd) > 0.8) pendZoom += dd;
+      else rolar(dy * 3);
+    } else {
+      var v = Math.sqrt(dx * dx + dy * dy);
+      var ganho = (1.2 + Math.min(v / 12, 2.2)) * cfg.sens;
+      pendX += dx * ganho; pendY += dy * ganho;
+    }
+  }, { passive: false });
+  el.addEventListener('touchend', function (e) {
+    e.preventDefault();
+    if (e.touches.length < 2) ultDist = null;
+    if (e.touches.length > 0) { ultimoPt = centro(e.touches); return; }
+    var dur = Date.now() - inicioToque;
+    if (cfg.gestos && maxDedos >= 3 && ini3 && fim3) {
+      var gx = fim3.x - ini3.x, gy = fim3.y - ini3.y;
+      if (Math.max(Math.abs(gx), Math.abs(gy)) > 70) {
+        if (Math.abs(gy) > Math.abs(gx)) enviar(gy < 0 ? 'k win+tab' : 'k win+d');
+        else enviar(gx > 0 ? 'k alt+tab' : 'k alt+shift+tab');
+        vibra(15); toast(Math.abs(gy) > Math.abs(gx) ? (gy < 0 ? 'Visão de tarefas' : 'Área de trabalho') : 'Trocar de janela');
+      }
+    } else if (moveuTotal < 10 && dur < 250 && !travaArrasto) {
+      if (arrastando) { setArrasto(false); enviar('b l c'); }
+      else if (maxDedos >= 2) enviar('b r c');
+      else { enviar('b l c'); ultimoTap = Date.now(); }
+      vibra();
+    } else if (arrastando && !travaArrasto) setArrasto(false);
+    ultimoPt = null; ini3 = null; fim3 = null;
+  }, { passive: false });
+  el.addEventListener('touchcancel', function () { ultimoPt = null; ultDist = null; if (!travaArrasto) setArrasto(false); });
+  });
+
+  setInterval(function () {
+    if (pendX || pendY) {
+      var x = Math.round(pendX), y = Math.round(pendY); pendX -= x; pendY -= y;
+      if (x || y) enviar('m ' + x + ' ' + y);
+    }
+    if (Math.abs(pendRoda) >= 1) { var r = Math.round(pendRoda); pendRoda -= r; enviar('w ' + r); }
+    if (Math.abs(pendZoom) >= 14) { var passos = Math.trunc(pendZoom / 14); pendZoom -= passos * 14; enviar('z ' + (passos * 120)); }
+  }, 16);
+
+  $('#bEsq').onclick = function () { enviar('b l c'); vibra(); };
+  $('#bDir').onclick = function () { enviar('b r c'); vibra(); };
+  $('#bArr').onclick = function () {
+    travaArrasto = !travaArrasto; $('#bArr').classList.toggle('liga', travaArrasto);
+    setArrasto(travaArrasto);
+    toast(travaArrasto ? 'Arrastar ligado: mova o dedo' : 'Arrastar desligado');
+  };
+
+  /* faixa de rolagem com um dedo */
+  var faixaRol = $('#rolagem'), rolY = null, rolPos = 0;
+  faixaRol.addEventListener('touchstart', function (e) { e.preventDefault(); rolY = e.touches[0].clientY; faixaRol.classList.add('ativa'); }, { passive: false });
+  faixaRol.addEventListener('touchmove', function (e) {
+    e.preventDefault(); if (rolY === null) return;
+    var y = e.touches[0].clientY, dy = y - rolY; rolY = y;
+    rolar(dy * 5); rolPos += dy; faixaRol.querySelector('.grip').style.backgroundPositionY = rolPos + 'px';
+  }, { passive: false });
+  ['touchend', 'touchcancel'].forEach(function (ev) {
+    faixaRol.addEventListener(ev, function (e) { e.preventDefault(); rolY = null; faixaRol.classList.remove('ativa'); }, { passive: false });
+  });
+
+  /* ---------- ajustes ---------- */
+  function mostrarAjustes() {
+    $('#cSens').value = cfg.sens; $('#vSens').textContent = Number(cfg.sens).toFixed(1) + 'x';
+    $('#cRol').value = cfg.rolagem; $('#vRol').textContent = Number(cfg.rolagem).toFixed(1) + 'x';
+    $$('[data-cfg]').forEach(function (b) {
+      var on = !!cfg[b.dataset.cfg], p = b.querySelector('.pill');
+      p.textContent = on ? 'ligado' : 'desligado'; p.classList.toggle('on', on);
+    });
+  }
+  $('#cSens').oninput = function () { cfg.sens = parseFloat(this.value); $('#vSens').textContent = cfg.sens.toFixed(1) + 'x'; salvarCfg(); };
+  $('#cRol').oninput = function () { cfg.rolagem = parseFloat(this.value); $('#vRol').textContent = cfg.rolagem.toFixed(1) + 'x'; salvarCfg(); };
+  $$('[data-cfg]').forEach(function (b) {
+    b.onclick = function () { cfg[b.dataset.cfg] = !cfg[b.dataset.cfg]; salvarCfg(); mostrarAjustes(); vibra(); };
+  });
+  mostrarAjustes();
+
+  /* ---------- digitacao ao vivo ---------- */
+  var vivoTxt = false, anterior = '', ta = $('#texto');
+  function setVivo(on) {
+    vivoTxt = on; anterior = ta.value = '';
+    var p = $('#bVivo').querySelector('.pill'); p.textContent = on ? 'ligada' : 'desligada'; p.classList.toggle('on', on);
+    ta.placeholder = on ? 'Digite: aparece direto no computador' : 'Digite aqui e toque em Enviar';
+    $('#bEnviar').style.opacity = on ? .4 : 1;
+    if (on) ta.focus();
+  }
+  $('#bVivo').onclick = function () { setVivo(!vivoTxt); };
+  ta.addEventListener('input', function () {
+    if (!vivoTxt) return;
+    var cur = ta.value, i = 0;
+    while (i < anterior.length && i < cur.length && anterior.charAt(i) === cur.charAt(i)) i++;
+    for (var n = anterior.length - i; n > 0; n--) enviar('k backspace');
+    var novo = cur.slice(i);
+    if (novo) enviar('t ' + novo);
+    anterior = cur;
+    if (cur.length > 300) { ta.value = ''; anterior = ''; }
+  });
+  ta.addEventListener('blur', function () { if (vivoTxt) { ta.value = ''; anterior = ''; } });
+
+  /* ---------- link compartilhado / atalho da tela inicial ---------- */
+  var fila = null;   // {cmd, pc, ate}
+  function liberarFila() {
+    if (!fila || !atual) return;
+    if (Date.now() > fila.ate) { fila = null; return; }
+    if (fila.pc && fila.pc !== atual.id) return;
+    if (fila.arq) {
+      try { Android.enviarArquivos(atual.ip, atual.porta, atual.token, !!cfg.abrirRecebidos); toast('Enviando arquivo(s) ao PC…'); } catch (e) { toast('Não consegui enviar'); }
+      fila = null; return;
+    }
+    if (enviar(fila.cmd)) { toast(fila.msg); fila = null; }
+  }
+  window.cuIntent = function () {
+    var j = null;
+    try { var s = Android.pegarPendente(); if (s) j = JSON.parse(s); } catch (e) {}
+    if (!j) return;
+    if (j.tipo === 'link') {
+      var m = /https?:\/\/[^\s]+/i.exec(j.valor || '');
+      var url = m ? m[0] : 'https://www.google.com/search?q=' + encodeURIComponent((j.valor || '').trim());
+      fila = { cmd: 'u ' + url, pc: null, ate: Date.now() + 90000, msg: 'Aberto no PC' };
+    } else if (j.tipo === 'site') {
+      var ehCena = String(j.site).indexOf('cena:') === 0;
+      fila = { cmd: ehCena ? 'sx ' + String(j.site).slice(5) : 'o ' + j.site, pc: j.pc, ate: Date.now() + 90000, msg: ehCena ? 'Cena em andamento' : 'Aberto no PC' };
+    } else if (j.tipo === 'arquivos') {
+      fila = { arq: true, pc: null, ate: Date.now() + 90000, msg: '' };
+    }
+    if (!fila) return;
+    if (atual && ws && ws.readyState === 1 && tela.atual === 'controle') { liberarFila(); return; }
+    var alvo = fila.pc || ultimo() || (pcs.length === 1 ? pcs[0].id : null);
+    var pc = alvo ? achar(alvo) : null;
+    if (pc && pc.token) { toast('Conectando ao ' + pc.nome + '…'); entrar(pc.id, achados[pc.id] || pc); }
+    else toast('Escolha um computador para enviar');
+  };
+
+  /* ---------- chamadas ao PC por HTTP ---------- */
+  function apiPc(caminho, metodo, corpo) {
+    var o = { method: metodo || 'GET', headers: { 'X-Token': atual.token } };
+    if (corpo !== undefined) { o.headers['Content-Type'] = 'application/json'; o.body = JSON.stringify(corpo); }
+    return fetchT(base(atual) + caminho, o, 6000).then(function (r) { if (!r.ok) throw r.status; return r.json(); });
+  }
+
+  /* ---------- nomes legiveis dos passos ---------- */
+  var cenasLista = [], audioLista = [], agendaLista = [], edCena = null;
+  var TECLAS_NOME = { f11: 'Tela cheia (F11)', playpause: 'Play / Pausa', mute: 'Silenciar ou reativar o som', next: 'Próxima faixa', prev: 'Faixa anterior',
+    'alt+f4': 'Fechar a janela', 'win+d': 'Mostrar a área de trabalho', esc: 'Esc', enter: 'Enter', space: 'Espaço', 'ctrl+w': 'Fechar a aba', 'alt+tab': 'Trocar de janela' };
+  function descreverPasso(p) {
+    var i = p.indexOf(' '), c = i < 0 ? p : p.slice(0, i), a = i < 0 ? '' : p.slice(i + 1);
+    if (c === 'o') { var s = sitesAtuais.filter(function (x) { return x.id === a; })[0]; return 'Abrir ' + (s ? s.titulo : a); }
+    if (c === 'u') return 'Abrir ' + a.replace(/^https?:\/\/(www\.)?/, '');
+    if (c === 'n') return 'Abrir o navegador';
+    if (c === 'vs') return 'Volume em ' + Math.round(parseFloat(a) * 100) + '%';
+    if (c === 'd') return 'Esperar ' + (parseInt(a, 10) / 1000) + ' s';
+    if (c === 'k') return TECLAS_NOME[a] || ('Tecla ' + a);
+    if (c === 'as') { var d = audioLista.filter(function (x) { return x.id === a; })[0]; return 'Som em: ' + (d ? d.n : 'outro dispositivo'); }
+    if (c === 'pw') return ({ screenoff: 'Apagar a tela', lock: 'Bloquear o PC', sleep: 'Suspender o PC', shutdown: 'Desligar o PC', restart: 'Reiniciar o PC' })[a] || p;
+    if (c === 'pt') return 'Desligar o PC em ' + a + ' min';
+    if (c === 't') return 'Digitar “' + (a.length > 24 ? a.slice(0, 24) + '…' : a) + '”';
+    if (c === 'sx') { var ce = cenasLista.filter(function (x) { return x.id === a; })[0]; return 'Cena: ' + (ce ? ce.nome : a); }
+    return p;
+  }
+
+  /* ---------- cenas ---------- */
+  function carregarCenas(silencioso) {
+    if (!atual) return;
+    apiPc('/api/cenas').then(function (d) { cenasLista = d.cenas || []; desenharCenas(); desenharRapidas(); })
+      .catch(function () { if (!silencioso) toast('Não consegui carregar as cenas'); });
+  }
+  function rodarCena(c) { enviar('sx ' + c.id); toast('Cena “' + c.nome + '” em andamento'); vibra(20); }
+  function desenharRapidas() {
+    var box = $('#cenasRapidas'); box.innerHTML = '';
+    $('#cenasTitulo').style.display = cenasLista.length ? '' : 'none';
+    cenasLista.forEach(function (c) {
+      var b = document.createElement('button'); b.className = 'btn'; b.innerHTML = ico('star') + '<span></span>';
+      b.querySelector('span').textContent = c.nome; b.onclick = function () { rodarCena(c); }; box.appendChild(b);
+    });
+  }
+  function desenharCenas() {
+    var box = $('#listaCenas'); box.innerHTML = '';
+    if (!cenasLista.length) { box.innerHTML = '<div class="suave" style="margin:0 6px">Nenhuma cena ainda. Crie a primeira abaixo.</div>'; return; }
+    cenasLista.forEach(function (c) {
+      var d = document.createElement('div'); d.className = 'cena';
+      d.innerHTML = '<button class="corpo"><b></b><small></small></button><button class="icb rodar" aria-label="Executar">' + ico('play', 'cheio') + '</button>';
+      d.querySelector('b').textContent = c.nome;
+      d.querySelector('small').textContent = (c.passos || []).map(descreverPasso).join(' · ') || 'Sem passos';
+      d.querySelector('.corpo').onclick = function () { editarCena(c); };
+      d.querySelector('.rodar').onclick = function () { rodarCena(c); };
+      box.appendChild(d);
+    });
+  }
+  $('#cenaNova').onclick = function () { editarCena(null); };
+
+  var TIPOS = [
+    { rot: 'Abrir um site', campo: 'site' }, { rot: 'Abrir um endereço', campo: 'url' }, { rot: 'Definir o volume', campo: 'vol' },
+    { rot: 'Esperar alguns segundos', campo: 'seg' }, { rot: 'Atalho de teclado', campo: 'tecla' }, { rot: 'Trocar a saída de áudio', campo: 'audio' },
+    { rot: 'Digitar um texto', campo: 'texto' }, { rot: 'Play / Pausa', cmd: 'k playpause' }, { rot: 'Silenciar ou reativar o som', cmd: 'k mute' },
+    { rot: 'Tela cheia (F11)', cmd: 'k f11' }, { rot: 'Apagar a tela', cmd: 'pw screenoff' }, { rot: 'Bloquear o PC', cmd: 'pw lock' },
+    { rot: 'Suspender o PC', cmd: 'pw sleep' }, { rot: 'Desligar o PC em alguns minutos', campo: 'min' }, { rot: 'Abrir o navegador', cmd: 'n' }
+  ];
+  function editarCena(c) {
+    edCena = c ? { id: c.id, nome: c.nome, passos: (c.passos || []).slice() } : { id: null, nome: '', passos: [] };
+    $('#cenaNome').value = edCena.nome;
+    $('#cenaApagar').style.display = edCena.id ? '' : 'none';
+    enviar('al');
+    var sel = $('#passoTipo'); sel.innerHTML = '';
+    TIPOS.forEach(function (t, i) { var o = document.createElement('option'); o.value = i; o.textContent = t.rot; sel.appendChild(o); });
+    sel.onchange = campoPasso; campoPasso(); desenharPassos();
+    irParaAba('cenaEd');
+  }
+  function campoPasso() {
+    var t = TIPOS[parseInt($('#passoTipo').value, 10)], a = $('#passoCampo'); a.innerHTML = '';
+    var c = t.campo;
+    if (c === 'site') a.innerHTML = '<select id="pcSite">' + sitesAtuais.map(function (s) { return '<option value="' + s.id + '">' + s.titulo.replace(/</g, '&lt;') + '</option>'; }).join('') + '</select>';
+    else if (c === 'url') a.innerHTML = '<input id="pcTexto" type="url" inputmode="url" placeholder="https://..." autocapitalize="off">';
+    else if (c === 'texto') a.innerHTML = '<input id="pcTexto" placeholder="Texto a digitar">';
+    else if (c === 'vol') { a.innerHTML = '<div class="volbar" style="background:var(--card2)"><svg class="i"><use href="#i-vol1"/></svg><input type="range" id="pcVol" min="0" max="100" value="40"><b id="pcVolTxt">40%</b></div>'; $('#pcVol').oninput = function () { $('#pcVolTxt').textContent = this.value + '%'; }; }
+    else if (c === 'seg') a.innerHTML = '<input id="pcNum" type="number" inputmode="numeric" min="1" max="60" value="3" placeholder="Segundos">';
+    else if (c === 'min') a.innerHTML = '<input id="pcNum" type="number" inputmode="numeric" min="1" max="720" value="30" placeholder="Minutos">';
+    else if (c === 'tecla') a.innerHTML = '<input id="pcTexto" placeholder="Ex.: ctrl+w, alt+tab, f5, win+d" autocapitalize="off">';
+    else if (c === 'audio') a.innerHTML = '<select id="pcAudio">' + audioLista.map(function (d) { return '<option value="' + d.id.replace(/"/g, '') + '">' + d.n.replace(/</g, '&lt;') + '</option>'; }).join('') + '</select>';
+  }
+  function lerPasso() {
+    var t = TIPOS[parseInt($('#passoTipo').value, 10)];
+    if (t.cmd) return t.cmd;
+    if (t.campo === 'site') return $('#pcSite') && $('#pcSite').value ? 'o ' + $('#pcSite').value : null;
+    if (t.campo === 'url') { var u = $('#pcTexto').value.trim(); if (!u) return null; if (!/^https?:\/\//i.test(u)) u = 'https://' + u; return 'u ' + u; }
+    if (t.campo === 'texto') { var x = $('#pcTexto').value; return x ? 't ' + x : null; }
+    if (t.campo === 'vol') return 'vs ' + (parseInt($('#pcVol').value, 10) / 100).toFixed(2);
+    if (t.campo === 'seg') { var s = parseInt($('#pcNum').value, 10); return s > 0 ? 'd ' + Math.min(60, s) * 1000 : null; }
+    if (t.campo === 'min') { var m = parseInt($('#pcNum').value, 10); return m > 0 ? 'pt ' + Math.min(720, m) : null; }
+    if (t.campo === 'tecla') { var k = $('#pcTexto').value.trim().toLowerCase(); return k ? 'k ' + k : null; }
+    if (t.campo === 'audio') return $('#pcAudio') && $('#pcAudio').value ? 'as ' + $('#pcAudio').value : null;
+    return null;
+  }
+  function desenharPassos() {
+    var box = $('#cenaPassos'); box.innerHTML = '';
+    if (!edCena.passos.length) box.innerHTML = '<div class="suave" style="margin:0 6px">Nenhum passo ainda.</div>';
+    edCena.passos.forEach(function (p, i) {
+      var d = document.createElement('div'); d.className = 'passo';
+      d.innerHTML = '<span></span><button class="icb" data-a="u">' + ico('up') + '</button><button class="icb" data-a="d">' + ico('down') + '</button><button class="icb" data-a="x">' + ico('x') + '</button>';
+      d.querySelector('span').textContent = (i + 1) + '. ' + descreverPasso(p);
+      d.querySelector('[data-a=u]').onclick = function () { if (i > 0) { edCena.passos.splice(i - 1, 0, edCena.passos.splice(i, 1)[0]); desenharPassos(); } };
+      d.querySelector('[data-a=d]').onclick = function () { if (i < edCena.passos.length - 1) { edCena.passos.splice(i + 1, 0, edCena.passos.splice(i, 1)[0]); desenharPassos(); } };
+      d.querySelector('[data-a=x]').onclick = function () { edCena.passos.splice(i, 1); desenharPassos(); };
+      box.appendChild(d);
+    });
+  }
+  $('#passoAdd').onclick = function () {
+    var p = lerPasso(); if (!p) { toast('Preencha o passo'); return; }
+    edCena.passos.push(p); desenharPassos(); vibra();
+  };
+  $('#cenaTestar').onclick = function () {
+    var fila2 = edCena.passos.slice(), n = 0;
+    (function prox() {
+      if (n >= fila2.length) return;
+      var p = fila2[n++];
+      if (p.indexOf('d ') === 0) { setTimeout(prox, parseInt(p.slice(2), 10) || 0); return; }
+      enviar(p); setTimeout(prox, 150);
+    })();
+    toast('Testando a cena…');
+  };
+  function enviarCenas(lista) {
+    return apiPc('/api/cenas', 'POST', { cenas: lista.map(function (c) { return { nome: c.nome, passos: c.passos }; }) })
+      .then(function (d) { cenasLista = d.cenas || []; desenharCenas(); desenharRapidas(); });
+  }
+  $('#cenaSalvar').onclick = function () {
+    var nome = $('#cenaNome').value.trim();
+    if (!nome) { toast('Dê um nome à cena'); return; }
+    if (!edCena.passos.length) { toast('Adicione pelo menos um passo'); return; }
+    var lista = cenasLista.map(function (c) { return c.id === edCena.id ? { nome: nome, passos: edCena.passos } : c; });
+    if (!edCena.id) lista.push({ nome: nome, passos: edCena.passos });
+    enviarCenas(lista).then(function () { toast('Cena salva'); vibra(20); irParaAba('cenas'); }).catch(function () { toast('Não consegui salvar'); });
+  };
+  $('#cenaAtalho').onclick = function () {
+    if (!edCena || !edCena.id) { toast('Salve a cena primeiro'); return; }
+    var ok = false; try { ok = Android.fixarAtalho(atual.id, 'cena:' + edCena.id, edCena.nome, '#e8590c'); } catch (e) {}
+    toast(ok ? 'Confirme para adicionar o atalho' : 'Seu celular não permite criar este atalho');
+  };
+  $('#cenaApagar').onclick = function () {
+    var b = $('#cenaApagar');
+    duploToque(b, function () {
+      enviarCenas(cenasLista.filter(function (c) { return c.id !== edCena.id; })).then(function () { toast('Cena apagada'); irParaAba('cenas'); }).catch(function () { toast('Não consegui apagar'); });
+    });
+  };
+
+  /* ---------- agenda ---------- */
+  function carregarAgenda() {
+    apiPc('/api/agenda').then(function (d) { agendaLista = d.itens || []; desenharAgenda(); }).catch(function () { toast('Não consegui carregar a agenda'); });
+    apiPc('/api/cenas').then(function (d) { cenasLista = d.cenas || []; preencherAlvo(); desenharAgenda(); }).catch(function () {});
+  }
+  function quando(a) {
+    var d = a.proximo ? new Date(a.proximo) : null;
+    return a.hora + (a.diario ? ' · todos os dias' : ' · uma vez') + (d && !isNaN(d) ? ' · próxima: ' + ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) : '');
+  }
+  function desenharAgenda() {
+    var box = $('#listaAgenda'); box.innerHTML = '';
+    if (!agendaLista.length) { box.innerHTML = '<div class="suave" style="margin:0 6px">Nada agendado.</div>'; return; }
+    agendaLista.forEach(function (a) {
+      var d = document.createElement('div'); d.className = 'cena';
+      d.innerHTML = '<div class="corpo"><b></b><small></small><small class="s2"></small></div><button class="icb" aria-label="Apagar">' + ico('trash') + '</button>';
+      d.querySelector('b').textContent = a.titulo; d.querySelector('small').textContent = quando(a);
+      d.querySelector('.s2').textContent = (a.passos || []).map(descreverPasso).join(' · ');
+      var bx = d.querySelector('.icb');
+      bx.onclick = function () { duploToque(bx, function () { agendaLista = agendaLista.filter(function (x) { return x.id !== a.id; }); salvarAgenda(); }, false); };
+      box.appendChild(d);
+    });
+  }
+  function salvarAgenda() {
+    return apiPc('/api/agenda', 'POST', { itens: agendaLista.map(function (a) { return { id: a.id, titulo: a.titulo, hora: a.hora, diario: a.diario, passos: a.passos, proximo: a.proximo }; }) })
+      .then(function (d) { agendaLista = d.itens || []; desenharAgenda(); }).catch(function () { toast('Não consegui salvar a agenda'); });
+  }
+  function preencherAlvo() {
+    var a = $('#agAcao').value, alvo = $('#agAlvo');
+    alvo.style.display = (a === 'cena' || a === 'site') ? '' : 'none'; alvo.innerHTML = '';
+    var fonte = a === 'cena' ? cenasLista.map(function (c) { return { v: c.id, t: c.nome }; }) : sitesAtuais.map(function (s) { return { v: s.id, t: s.titulo }; });
+    if (a === 'cena' && !fonte.length) fonte = [{ v: '', t: '(crie uma cena primeiro)' }];
+    fonte.forEach(function (x) { var o = document.createElement('option'); o.value = x.v; o.textContent = x.t; alvo.appendChild(o); });
+  }
+  $('#agAcao').onchange = preencherAlvo;
+  $('#agAdd').onclick = function () {
+    var a = $('#agAcao').value, alvo = $('#agAlvo').value, hora = $('#agHora').value;
+    if (!hora) { toast('Escolha o horário'); return; }
+    var passos;
+    if (a === 'cena') { if (!alvo) { toast('Crie uma cena primeiro'); return; } passos = ['sx ' + alvo]; }
+    else if (a === 'site') { if (!alvo) return; passos = ['o ' + alvo]; }
+    else passos = ['pw ' + a];
+    var tit = $('#agTit').value.trim() || descreverPasso(passos[0]);
+    agendaLista.push({ id: '', titulo: tit, hora: hora, diario: $('#agRepete').value === '1', passos: passos, proximo: '' });
+    salvarAgenda().then(function () { toast('Agendado para ' + hora); vibra(20); $('#agTit').value = ''; });
+  };
+
+  /* ---------- arquivos do PC ---------- */
+  var arq = { c: null, pai: '', itens: [], sel: null };
+  function tamanhoLegivel(n) {
+    if (n < 1024) return n + ' B'; if (n < 1048576) return Math.round(n / 1024) + ' KB';
+    if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB'; return (n / 1073741824).toFixed(2) + ' GB';
+  }
+  function iconeArq(it) {
+    if (it.t === 'd') return /^[A-Z]:\\$/.test(it.c) ? 'hdd' : 'folder';
+    var e = (it.n.split('.').pop() || '').toLowerCase();
+    if (/^(mp4|mkv|avi|mov|wmv|webm|m4v)$/.test(e)) return 'film';
+    if (/^(mp3|wav|flac|m4a|ogg|aac)$/.test(e)) return 'music';
+    if (/^(jpg|jpeg|png|gif|bmp|webp|heic)$/.test(e)) return 'image';
+    return 'file';
+  }
+  function abrirPasta(c) {
+    apiPc('/api/pasta?c=' + encodeURIComponent(c)).then(function (d) {
+      arq.c = d.c; arq.pai = d.pai; arq.itens = d.itens || []; $('#arqAcoes').classList.remove('on'); desenharArq();
+      var m = document.getElementById('t-controle').querySelector('main'); if (m) m.scrollTop = 0;
+    }).catch(function () { toast('Não consegui abrir a pasta'); });
+  }
+  function desenharArq() {
+    $('#arqCaminho').textContent = arq.c === '@' ? 'Início' : arq.c;
+    var box = $('#listaArq'); box.innerHTML = '';
+    if (!arq.itens.length) box.innerHTML = '<div class="suave" style="margin:0 6px">Pasta vazia.</div>';
+    arq.itens.forEach(function (it) {
+      var b = document.createElement('button'); b.className = 'arq' + (it.t === 'd' ? ' pasta' : '');
+      b.innerHTML = ico(iconeArq(it)) + '<span class="nome"></span>' + (it.t === 'f' ? '<small></small>' : '');
+      b.querySelector('.nome').textContent = it.n; if (it.t === 'f') b.querySelector('small').textContent = tamanhoLegivel(it.s);
+      b.onclick = function () {
+        if (it.t === 'd') abrirPasta(it.c);
+        else { arq.sel = it; $('#arqNome').textContent = it.n; $('#arqAcoes').classList.add('on'); }
+      };
+      box.appendChild(b);
+    });
+  }
+  $('#arqPai').onclick = function () { if (arq.c && arq.c !== '@') abrirPasta(arq.pai || '@'); };
+  $('#arqRaiz').onclick = function () { abrirPasta('@'); };
+  $('#arqFechar').onclick = function () { $('#arqAcoes').classList.remove('on'); };
+  $('#arqAbrir').onclick = function () { enviar('fo ' + b64(arq.sel.c)); toast('Abrindo no PC…'); vibra(); $('#arqAcoes').classList.remove('on'); };
+  $('#arqBaixar').onclick = function () {
+    var url = base(atual) + '/api/baixar?t=' + encodeURIComponent(atual.token) + '&c=' + encodeURIComponent(arq.sel.c);
+    var ok = false; try { ok = Android.baixar(url, arq.sel.n); } catch (e) {}
+    toast(ok ? 'Baixando em Downloads/Controle Universal' : 'Não consegui iniciar o download'); $('#arqAcoes').classList.remove('on');
+  };
+
+  /* ---------- saida de audio ---------- */
+  function desenharAudio() {
+    var atualDev = audioLista.filter(function (d) { return d.p; })[0];
+    $('#audioNome').textContent = atualDev ? 'Som: ' + atualDev.n : 'Saída de áudio';
+    var box = $('#listaAudio'); box.innerHTML = '';
+    audioLista.forEach(function (d) {
+      var b = document.createElement('button'); b.className = 'btn linha-menu' + (d.p ? ' liga' : '');
+      b.innerHTML = ico('speaker') + '<span class="rot"></span>' + (d.p ? ico('check') : ico('right'));
+      b.querySelector('.rot').textContent = d.n;
+      b.onclick = function () { if (d.p) return; enviar('as ' + d.id); vibra(20); toast('Trocando o som para: ' + d.n); };
+      box.appendChild(b);
+    });
+  }
+  $('#bAudioCard').onclick = function () { irParaAba('audio'); };
+
+  /* ---------- brilho (so notebook) ---------- */
+  var briSuportado = null, briArrasto = false;
+  function mostrarBrilho(v) {
+    if (v < 0) { briSuportado = false; $('#briBar').style.display = 'none'; return; }
+    briSuportado = true; $('#briBar').style.display = '';
+    if (!briArrasto) $('#briRange').value = v; $('#briTxt').textContent = v + '%';
+  }
+  (function () {
+    var r = $('#briRange'), ult = 0;
+    r.addEventListener('touchstart', function () { briArrasto = true; }, { passive: true });
+    ['touchend', 'touchcancel'].forEach(function (ev) { r.addEventListener(ev, function () { briArrasto = false; }, { passive: true }); });
+    r.addEventListener('input', function () { $('#briTxt').textContent = r.value + '%'; var n = Date.now(); if (n - ult > 120) { ult = n; enviar('bs ' + r.value); } });
+    r.addEventListener('change', function () { enviar('bs ' + r.value); });
+  })();
+
+  /* ---------- apresentacao ---------- */
+  var cron = { s: 0, rod: false, h: null };
+  function mostrarCron() { var m = Math.floor(cron.s / 60), s = cron.s % 60; $('#cron').textContent = ('0' + m).slice(-2) + ':' + ('0' + s).slice(-2); }
+  $('#cronIni').onclick = function () {
+    cron.rod = !cron.rod;
+    $('#cronIni').innerHTML = (cron.rod ? '<svg class="i"><use href="#i-minus"/></svg>Pausar' : '<svg class="i cheio"><use href="#i-play"/></svg>Iniciar');
+    if (cron.rod) cron.h = setInterval(function () { cron.s++; mostrarCron(); }, 1000); else clearInterval(cron.h);
+  };
+  $('#cronZera').onclick = function () { cron.s = 0; mostrarCron(); };
+
+  /* ---------- voz e busca ---------- */
+  var vozAlvo = 'teclado';
+  function chamarVoz() { try { Android.voz(); } catch (e) { toast('Seu celular não tem reconhecimento de voz'); } }
+  $('#bVoz').onclick = function () { vozAlvo = 'teclado'; chamarVoz(); };
+  $('#buscaVoz').onclick = function () { vozAlvo = 'busca'; chamarVoz(); };
+  window.cuVoz = function (txt) {
+    if (!txt) { toast('Não ouvi nada. Tente de novo.'); return; }
+    if (vozAlvo === 'busca') { $('#buscaTexto').value = txt; buscar(); }
+    else { enviar('t ' + txt); toast('Digitado no PC: ' + txt); vibra(); }
+  };
+  function buscar() {
+    var q = $('#buscaTexto').value.trim(); if (!q) { toast('Digite o que buscar'); return; }
+    var e = encodeURIComponent(q).replace(/'/g, '%27');
+    var base2 = { youtube: 'https://www.youtube.com/results?search_query=', google: 'https://www.google.com/search?q=', netflix: 'https://www.netflix.com/search?q=', spotify: 'https://open.spotify.com/search/' };
+    enviar('u ' + base2[$('#buscaOnde').value] + e); toast('Buscando no PC…'); vibra();
+  }
+  $('#buscaIr').onclick = buscar;
+  $('#buscaTexto').addEventListener('keydown', function (e) { if (e.key === 'Enter') buscar(); });
+
+  /* ---------- teclado completo ---------- */
+  var tcMods = { ctrl: false, alt: false, shift: false, win: false };
+  function montarTeclado() {
+    var box = $('#tcTeclas'); box.innerHTML = '';
+    function linha(teclas, cls) {
+      var r = document.createElement('div'); r.className = 'trow';
+      teclas.forEach(function (k) {
+        var nome = k[0], rotulo = k[1] || k[0], extra = k[2] || '';
+        var b = document.createElement('button'); b.className = 'tk ' + (cls || '') + ' ' + extra; b.textContent = rotulo; b.dataset.k = nome;
+        b.addEventListener('touchstart', function (e) { e.preventDefault(); b.classList.add('press'); teclaCompleta(nome, b); }, { passive: false });
+        ['touchend', 'touchcancel'].forEach(function (ev) { b.addEventListener(ev, function () { b.classList.remove('press'); }); });
+        r.appendChild(b);
+      });
+      box.appendChild(r);
+    }
+    linha([['ctrl', 'Ctrl', 'mod'], ['alt', 'Alt', 'mod'], ['shift', 'Shift', 'mod'], ['win', 'Win', 'mod']]);
+    var fns = [['esc', 'Esc']]; for (var i = 1; i <= 12; i++) fns.push(['f' + i, 'F' + i]);
+    linha(fns.slice(0, 7), 'fn'); linha(fns.slice(7), 'fn');
+    linha('1234567890-='.split('').map(function (c) { return [c]; }).concat([['backspace', '⌫', 'larga']]));
+    linha([['tab', 'Tab', 'larga']].concat('qwertyuiop[]\\'.split('').map(function (c) { return [c]; })));
+    linha('asdfghjkl;\''.split('').map(function (c) { return [c]; }).concat([['enter', 'Enter', 'larga']]));
+    linha('zxcvbnm,./'.split('').map(function (c) { return [c]; }).concat([['`']]));
+    linha([['space', 'Espaço', 'larga'], ['left', '◀'], ['up', '▲'], ['down', '▼'], ['right', '▶']]);
+    linha([['insert', 'Ins'], ['delete', 'Del'], ['home', 'Home'], ['end', 'End'], ['pgup', 'PgUp'], ['pgdn', 'PgDn']], 'fn');
+  }
+  // pontuacao e numeros sao digitados como caractere (o codigo da tecla muda conforme o teclado do PC: ABNT2, americano...)
+  var SHIFTADO = { '1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '^', '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+', '[': '{', ']': '}', '\\': '|', ';': ':', "'": '"', ',': '<', '.': '>', '/': '?', '`': '~' };
+  function limparMods() { for (var m in tcMods) tcMods[m] = false; $$('#tcTeclas .mod').forEach(function (x) { x.classList.remove('on'); }); }
+  function teclaCompleta(nome, btn) {
+    if (tcMods.hasOwnProperty(nome)) { tcMods[nome] = !tcMods[nome]; btn.classList.toggle('on', tcMods[nome]); vibra(6); return; }
+    var combo = []; ['ctrl', 'alt', 'shift', 'win'].forEach(function (m) { if (tcMods[m]) combo.push(m); });
+    if (nome.length === 1 && !/[a-z]/.test(nome) && (combo.length === 0 || (combo.length === 1 && combo[0] === 'shift'))) {
+      enviar('t ' + (combo.length ? (SHIFTADO[nome] || nome) : nome)); vibra(6); if (combo.length) limparMods(); return;
+    }
+    combo.push(nome); enviar('k ' + combo.join('+')); vibra(6);
+    if (combo.length > 1) limparMods();
+  }
+  $('#bTecCompleto').onclick = function () { montarTeclado(); tela('tecladoc'); };
+  $('#tcFechar').onclick = function () { tela('controle'); };
+
+  /* ---------- envio de arquivos do celular ---------- */
+  window.cuUpload = function (o) {
+    if (o.erro) { toast('Não consegui enviar: ' + o.erro); return; }
+    if (o.fim) { toast(o.ok + ' de ' + o.total + ' arquivo(s) enviado(s) ao PC'); vibra(25); return; }
+    toast('Enviando ' + o.i + '/' + o.de + ' · ' + o.pct + '%');
+  };
+
+  /* ---------- barra de abas some com o teclado do celular aberto ---------- */
+  var alturaMax = window.innerHeight;
+  window.addEventListener('resize', function () {
+    alturaMax = Math.max(alturaMax, window.innerHeight);
+    document.body.classList.toggle('teclado-aberto', window.innerHeight < alturaMax * 0.78 && window.innerWidth < window.innerHeight * 1.3);
+  });
+
+  /* ---------- tema e guia ---------- */
+  $('#bTema').onclick = function () { var o = ['escuro', 'claro', 'auto']; cfg.tema = o[(o.indexOf(cfg.tema) + 1) % 3]; salvarCfg(); aplicarTema(); vibra(); };
+  var ONB = [
+    { ic: 'laptop', t: 'Instale no computador', p: 'Copie o ControleUniversal.exe para o PC e dê dois cliques. Ele instala, fica perto do relógio e abre sozinho com o Windows.' },
+    { ic: 'globe', t: 'Mesma rede Wi‑Fi', p: 'Deixe o celular e o PC na mesma rede. O app procura o computador sozinho e mostra na lista.' },
+    { ic: 'lock', t: 'Digite o código', p: 'Toque no seu PC e digite os 6 números que aparecem no painel dele. Só precisa fazer uma vez.' },
+    { ic: 'star', t: 'Dicas', p: 'Segure um botão de site para criar atalho. Compartilhe links e arquivos para o PC pelo menu Compartilhar. Crie cenas para fazer várias coisas com um toque.' }
+  ], onbI = 0;
+  function mostrarOnb() {
+    var p = ONB[onbI];
+    $('#onbCorpo').innerHTML = '<div class="grande">' + ico(p.ic) + '</div><h2></h2><p></p>';
+    $('#onbCorpo h2').textContent = p.t; $('#onbCorpo p').textContent = p.p;
+    $('#onbPontos').innerHTML = ONB.map(function (x, i) { return '<i class="' + (i === onbI ? 'on' : '') + '"></i>'; }).join('');
+    $('#onbProx').textContent = onbI === ONB.length - 1 ? 'Começar' : 'Próximo';
+  }
+  function abrirOnb() { onbI = 0; mostrarOnb(); $('#onb').classList.add('on'); }
+  function fecharOnb() { $('#onb').classList.remove('on'); try { localStorage.setItem('cu_onb', '1'); } catch (e) {} }
+  $('#onbProx').onclick = function () { if (onbI >= ONB.length - 1) fecharOnb(); else { onbI++; mostrarOnb(); } };
+  $('#onbPular').onclick = fecharOnb;
+  $('#bGuia').onclick = abrirOnb;
+
+  /* ---------- botao voltar do Android ---------- */
+  window.cuVoltar = function () {
+    if ($('#onb').classList.contains('on')) { fecharOnb(); return true; }
+    if (tela.atual === 'tecladoc') { tela('controle'); return true; }
+    if (tela.atual === 'espelho') { pararEspelho(); tela('controle'); return true; }
+    if (tela.atual === 'controle') {
+      if (irParaAba.atual === 'cenaEd') { irParaAba('cenas'); return true; }
+      if (irParaAba.atual === 'arquivos' && arq.c && arq.c !== '@') { abrirPasta(arq.pai || '@'); return true; }
+      if (SUBS.indexOf(irParaAba.atual) >= 0) { irParaAba('mais'); return true; }
+      if (irParaAba.atual === 'mais') { irParaAba('mouse'); return true; }
+      sairDoControle(); return true;
+    }
+    if (tela.atual === 'parear') { tela('lista'); return true; }
+    return false;
+  };
+  window.cuTecla = function (k) { enviar('k ' + k); vibra(6); if (k === 'volup' || k === 'voldown') setTimeout(function () { enviar('vg'); }, 300); };
+
+  /* ---------- inicio ---------- */
+  desenharLista();
+  var ult = ultimo();
+  var salvo = ult ? achar(ult) : null;
+  if (salvo && salvo.token) {
+    sondar(salvo.ip, salvo.porta, 1500).then(function (d) {
+      if (d && d.id === salvo.id) { achados[d.id] = { id: d.id, nome: d.nome, ip: salvo.ip, porta: salvo.porta, mac: d.mac || '' }; entrar(salvo.id, achados[d.id]); }
+      else varrer();
+    });
+  } else varrer();
+  window.cuIntent();
+  var jaViuGuia = false; try { jaViuGuia = !!localStorage.getItem('cu_onb'); } catch (e) {}
+  if (!jaViuGuia) abrirOnb();
+})();
+</script>
+</body>
+</html>
